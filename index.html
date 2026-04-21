@@ -1,0 +1,2670 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Agent Dev Story — playable prototype v0.2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#0b0d12" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<!--
+  ═══════════════════════════════════════════════════════════════════
+  AGENT DEV STORY — prototype v0.2 (2026-04-20)
+  Pixel-UI management-sim: indie studio staffed by AI agents.
+  Single-file React-via-CDN. NOW WITH A LIVING OFFICE.
+
+  v0.2 success criteria (the "make it feel ALIVE" mandate):
+    1. Cold player opens → sees a visibly-ALIVE office within 3s
+       (characters bobbing, one working, popup somewhere).
+    2. Within 30s: Next Day → day transition animation + sun arc.
+    3. First ship → review reveal is so satisfying they smile.
+    4. Within 3 min: event interrupts, characters react visibly.
+    5. Within 5 min: hire → walk-in animation.
+    6. Within 10 min: they feel "oh this is ALIVE".
+
+  v0.2 adds to v0:
+    - Top-down office scene (middle of screen), 3–5 desks
+    - CSS-drawn pixel characters with 5 mood states + 6 animations
+    - Task-type working speech bubbles (code glyphs, lightbulbs, brushes)
+    - Number popups (+$, +REP, +XP, -$ ) floating from UI origins
+    - Day transition (dim + sun/moon arc + sky color sweep + chime)
+    - Review reveal drama: digit-by-digit slam, fanfare by tier,
+       confetti + screen shake + characters cheering for 30+
+    - Event card flies in; agents emote + eyes look up
+    - Hire-arrival walk-in animation + gold flash for Legendary
+    - Web Audio SFX (beeps, chimes, ticks, fanfare)
+
+  All v0 systems preserved (cards, projects, shop, events, save).
+  ═══════════════════════════════════════════════════════════════════
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; }
+  html { background: #0b0d12; }
+  body {
+    background: #0b0d12;
+    color: #e7ebf3;
+    font-family: "VT323", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 17px;
+    min-height: 100%;
+    overscroll-behavior: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #root { min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; }
+  button { -webkit-user-select: none; user-select: none; font-family: inherit; }
+
+  /* pixel title font for headings */
+  .ps2p { font-family: "Press Start 2P", "VT323", ui-monospace, monospace; }
+
+  /* scrollbars */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-thumb { background: #2a3040; border-radius: 3px; }
+
+  /* ───── rarity glow ───── */
+  @keyframes epicGlow {
+    0%, 100% { box-shadow: 0 0 0 2px #a855f7, 0 0 10px rgba(168,85,247,0.35); }
+    50%      { box-shadow: 0 0 0 2px #a855f7, 0 0 18px rgba(168,85,247,0.7); }
+  }
+  @keyframes legendaryGlow {
+    0%, 100% { box-shadow: 0 0 0 2px #fbbf24, 0 0 12px rgba(251,191,36,0.45); }
+    50%      { box-shadow: 0 0 0 2px #fbbf24, 0 0 22px rgba(251,191,36,0.85); }
+  }
+  @keyframes toastIn {
+    from { transform: translate(-50%, 18px); opacity: 0; }
+    to   { transform: translate(-50%, 0);     opacity: 1; }
+  }
+  @keyframes eventPop {
+    0%   { transform: translate(-50%, -160%) scale(0.6) rotate(-12deg); opacity: 0; }
+    55%  { transform: translate(-50%, -45%) scale(1.08) rotate(2deg);  opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1)    rotate(0);     opacity: 1; }
+  }
+  @keyframes pulseRing {
+    0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.35); }
+    100% { box-shadow: 0 0 0 10px rgba(255,255,255,0); }
+  }
+  @keyframes shimmer {
+    0% { background-position: -200px 0; }
+    100% { background-position: 400px 0; }
+  }
+
+  /* ───── character animations ───── */
+  @keyframes charIdle {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-2px); }
+  }
+  @keyframes charWork {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    25%      { transform: translateY(-1px) rotate(-1deg); }
+    50%      { transform: translateY(0) rotate(0deg); }
+    75%      { transform: translateY(-1px) rotate(1deg); }
+  }
+  @keyframes charCheer {
+    0%, 100% { transform: translateY(0) scale(1); }
+    40%      { transform: translateY(-10px) scale(1.12); }
+    60%      { transform: translateY(-12px) scale(1.12); }
+  }
+  @keyframes charTired {
+    0%, 100% { transform: translateY(2px) scale(0.96); filter: brightness(0.78) saturate(0.7); }
+    50%      { transform: translateY(3px) scale(0.95); filter: brightness(0.72) saturate(0.65); }
+  }
+  @keyframes charWalk {
+    0%   { left: -50px; }
+    100% { left: var(--walk-to, 50%); }
+  }
+  @keyframes charStep {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-3px); }
+  }
+  @keyframes charSurprise {
+    0%, 100% { transform: translateY(0) scale(1); }
+    30%      { transform: translateY(-4px) scale(1.1); }
+    60%      { transform: translateY(-2px) scale(1.05); }
+  }
+  @keyframes handTypeL {
+    0%,100% { transform: translateY(0); }
+    50%     { transform: translateY(-2px); }
+  }
+  @keyframes handTypeR {
+    0%,100% { transform: translateY(-2px); }
+    50%     { transform: translateY(0); }
+  }
+
+  /* ───── bubble animations ───── */
+  @keyframes bubbleFloat {
+    0%   { transform: translate(-50%, 0) scale(0.4); opacity: 0; }
+    20%  { transform: translate(-50%, -6px) scale(1); opacity: 1; }
+    80%  { transform: translate(-50%, -14px) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -22px) scale(0.9); opacity: 0; }
+  }
+  @keyframes bulbPulse {
+    0%   { transform: translate(-50%, 4px) scale(0.5); opacity: 0; }
+    30%  { transform: translate(-50%, -4px) scale(1.15); opacity: 1; }
+    70%  { transform: translate(-50%, -6px) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -14px) scale(0.8); opacity: 0; }
+  }
+
+  /* ───── number popups ───── */
+  @keyframes numPopGood {
+    0%   { transform: translate(-50%, 0) scale(0.6); opacity: 0; }
+    15%  { transform: translate(-50%, -10px) scale(1.2); opacity: 1; }
+    80%  { transform: translate(-50%, -38px) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -52px) scale(0.95); opacity: 0; }
+  }
+  @keyframes numPopBad {
+    0%   { transform: translate(-50%, 0) scale(0.6); opacity: 0; }
+    15%  { transform: translate(-50%, 8px) scale(1.2); opacity: 1; }
+    80%  { transform: translate(-50%, 26px) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, 38px) scale(0.9); opacity: 0; }
+  }
+
+  /* ───── day transition ───── */
+  @keyframes dayDim {
+    0%   { opacity: 0; }
+    40%  { opacity: 0.65; }
+    100% { opacity: 0; }
+  }
+  @keyframes calFlip {
+    0%   { transform: translate(-50%,-50%) rotateX(0); opacity: 0; }
+    20%  { transform: translate(-50%,-50%) rotateX(-90deg); opacity: 0.5; }
+    55%  { transform: translate(-50%,-50%) rotateX(0); opacity: 1; }
+    85%  { transform: translate(-50%,-50%) rotateX(0); opacity: 1; }
+    100% { transform: translate(-50%,-50%) rotateX(90deg); opacity: 0; }
+  }
+  @keyframes sunArc {
+    0%   { left: -8%; top: 72%; opacity: 0; }
+    15%  { opacity: 1; }
+    50%  { left: 50%; top: 8%; opacity: 1; }
+    85%  { opacity: 1; }
+    100% { left: 108%; top: 72%; opacity: 0; }
+  }
+
+  /* ───── review reveal ───── */
+  @keyframes releasingPulse {
+    0%, 100% { transform: scale(1);   opacity: 0.7; letter-spacing: 6px; }
+    50%      { transform: scale(1.1); opacity: 1;   letter-spacing: 10px; }
+  }
+  @keyframes digitSlam {
+    0%   { transform: translateY(-60px) scale(3); opacity: 0; filter: blur(4px); }
+    70%  { transform: translateY(6px)  scale(0.9); opacity: 1; filter: blur(0); }
+    100% { transform: translateY(0)     scale(1);   opacity: 1; filter: blur(0); }
+  }
+  @keyframes screenShake {
+    0%,100% { transform: translate(0,0); }
+    10%     { transform: translate(-4px, 2px); }
+    20%     { transform: translate(4px, -2px); }
+    30%     { transform: translate(-3px, 3px); }
+    40%     { transform: translate(3px, -3px); }
+    50%     { transform: translate(-2px, 2px); }
+    60%     { transform: translate(2px, -2px); }
+    70%     { transform: translate(-1px, 1px); }
+    80%     { transform: translate(1px, -1px); }
+  }
+  @keyframes screenShakeMild {
+    0%,100% { transform: translate(0,0); }
+    25%     { transform: translate(-2px, 1px); }
+    50%     { transform: translate(2px, -1px); }
+    75%     { transform: translate(-1px, 2px); }
+  }
+  @keyframes flashWhite {
+    0%   { opacity: 0; }
+    15%  { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  @keyframes flashGold {
+    0%   { background: rgba(251,191,36,0); }
+    15%  { background: rgba(251,191,36,0.8); }
+    100% { background: rgba(251,191,36,0); }
+  }
+  @keyframes rainbowShift {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+  }
+
+  /* ───── confetti ───── */
+  @keyframes confettiFall {
+    0%   { transform: translate(var(--cx,0), -20px) rotate(0deg); opacity: 1; }
+    100% { transform: translate(var(--cfx,0), 110vh) rotate(var(--cr,360deg)); opacity: 0.2; }
+  }
+  @keyframes particleBurst {
+    0%   { transform: translate(0, 0) scale(1);   opacity: 1; }
+    100% { transform: translate(var(--px,0), var(--py,100px)) scale(0.3); opacity: 0; }
+  }
+
+  /* ───── legendary ───── */
+  @keyframes cardFlipBig {
+    0%   { transform: translate(-50%,-50%) rotateY(0) scale(0.2); opacity: 0; }
+    25%  { transform: translate(-50%,-50%) rotateY(360deg) scale(1.2); opacity: 1; }
+    50%  { transform: translate(-50%,-50%) rotateY(720deg) scale(1); opacity: 1; }
+    85%  { transform: translate(-50%,-50%) rotateY(720deg) scale(1); opacity: 1; }
+    100% { transform: translate(-50%,-50%) rotateY(720deg) scale(0.8); opacity: 0; }
+  }
+  @keyframes legendText {
+    0%, 100% { text-shadow: 0 0 10px #fbbf24, 0 0 20px #fbbf24; }
+    50%      { text-shadow: 0 0 20px #fff,    0 0 40px #fbbf24; }
+  }
+
+  /* event-card fly-in */
+  @keyframes eventSlam {
+    0%   { transform: translate(-50%, -260%) scale(0.4) rotate(-15deg); opacity: 0; }
+    50%  { transform: translate(-50%, -40%) scale(1.15) rotate(3deg);  opacity: 1; }
+    75%  { transform: translate(-50%, -50%) scale(0.98) rotate(-1deg); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1)    rotate(0);     opacity: 1; }
+  }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+// ═══════════════════════════════════════════════════════════════════
+// AGENT DEV STORY — playable prototype v0.2
+// Pixel-UI management-sim with living office + card collection.
+// ═══════════════════════════════════════════════════════════════════
+
+// ── palette ────────────────────────────────────────────────────────
+const BG        = '#0b0d12';
+const SURFACE   = '#121620';
+const SURFACE_2 = '#1a1f2c';
+const BORDER    = '#2a3040';
+const TEXT      = '#e7ebf3';
+const MUTED     = '#7e879a';
+const ACCENT    = '#22d3ee';
+const SUCCESS   = '#4ade80';
+const DANGER    = '#ef4444';
+const GOLD      = '#fbbf24';
+
+const RARITY = {
+  common:    { label: 'COMMON',    color: '#8a93a6', glow: null,            tierCost: 600  },
+  rare:      { label: 'RARE',      color: '#3b82f6', glow: null,            tierCost: 1500 },
+  epic:      { label: 'EPIC',      color: '#a855f7', glow: 'epicGlow',      tierCost: 3600 },
+  legendary: { label: 'LEGENDARY', color: '#fbbf24', glow: 'legendaryGlow', tierCost: 8000 },
+};
+
+const STAT_ICONS = {
+  writing:  '📝',
+  coding:   '💻',
+  design:   '🎨',
+  research: '📚',
+  speed:    '⚡',
+};
+const STAT_ORDER = ['writing','coding','design','research','speed'];
+
+const TASK_STAT = {
+  Brief:  'writing',
+  Design: 'design',
+  Build:  'coding',
+};
+const TASK_GLYPHS = {
+  Brief:  ['📝','✏️','📋','💡'],
+  Design: ['🎨','🖌️','✨','◈'],
+  Build:  ['</>','{}','[]','⚙'],
+};
+
+const STORAGE_KEY = 'agent-dev-story-v02';
+
+// ── utility rng ────────────────────────────────────────────────────
+const rand  = (a, b) => a + Math.random() * (b - a);
+const irand = (a, b) => Math.floor(rand(a, b + 1));
+const pick  = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+let _idCounter = 1;
+const nextId = (prefix='id') => `${prefix}_${Date.now().toString(36)}_${_idCounter++}`;
+
+// ═══ WEB AUDIO ══════════════════════════════════════════════════════
+// tiny self-contained sfx engine
+let _audioCtx = null;
+function getAudio() {
+  if (!_audioCtx) {
+    try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch (e) { _audioCtx = null; }
+  }
+  if (_audioCtx && _audioCtx.state === 'suspended') { try { _audioCtx.resume(); } catch (_) {} }
+  return _audioCtx;
+}
+function beep(freq = 440, dur = 0.08, type = 'square', gain = 0.06, delay = 0) {
+  const ctx = getAudio();
+  if (!ctx) return;
+  const t0 = ctx.currentTime + delay;
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, t0);
+  g.gain.setValueAtTime(0, t0);
+  g.gain.linearRampToValueAtTime(gain, t0 + 0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g).connect(ctx.destination);
+  o.start(t0); o.stop(t0 + dur + 0.02);
+}
+const sfx = {
+  click:     () => beep(520, 0.05, 'square', 0.04),
+  pop:       () => beep(680, 0.06, 'sine',   0.05),
+  coin:      () => { beep(880, 0.06, 'square', 0.05); beep(1320, 0.08, 'square', 0.05, 0.06); },
+  tick:      () => beep(900, 0.03, 'square', 0.035),
+  dayChime:  () => { beep(660, 0.09, 'sine', 0.05); beep(990, 0.14, 'sine', 0.05, 0.08); },
+  event:     () => { beep(180, 0.18, 'sawtooth', 0.08); beep(260, 0.2, 'sawtooth', 0.06, 0.08); },
+  hire:      () => { beep(660, 0.1, 'sine', 0.06); beep(880, 0.1, 'sine', 0.06, 0.08); beep(1320, 0.15, 'sine', 0.06, 0.16); },
+  fanfareLow:()=> { beep(220, 0.15, 'sawtooth', 0.07); },
+  fanfareMid:()=> { beep(392, 0.1, 'triangle', 0.06); beep(523, 0.12, 'triangle', 0.06, 0.1); },
+  fanfareHi: ()=> { beep(523, 0.08, 'triangle', 0.06); beep(659, 0.08, 'triangle', 0.06, 0.08); beep(784, 0.14, 'triangle', 0.06, 0.16); },
+  fanfareLegend: () => {
+    const notes = [523, 659, 784, 988, 1046];
+    notes.forEach((f, i) => {
+      beep(f, 0.12, 'triangle', 0.07, i * 0.08);
+      beep(f/2, 0.16, 'sine', 0.04, i * 0.08);
+    });
+  },
+  legendaryFlash: () => {
+    [523, 659, 784, 988, 1175, 1318].forEach((f, i) => beep(f, 0.1, 'square', 0.05, i * 0.06));
+  },
+};
+
+// ── agent content pool ─────────────────────────────────────────────
+const AGENT_TEMPLATES = [
+  { tier:'haiku', rarity:'common', name:'Haiku-Jr Echo',   trait:'Speedy',        base:{ writing:22, coding:18, design:15, research:20, speed:35 }, flavor:'Tiny model, big hustle.' },
+  { tier:'haiku', rarity:'common', name:'Haiku-Jr Nova',   trait:'Eager',         base:{ writing:18, coding:22, design:20, research:18, speed:32 }, flavor:'Ships before reading the brief.' },
+  { tier:'haiku', rarity:'common', name:'Haiku-Jr Pixel',  trait:'Designer-leaning', base:{ writing:15, coding:18, design:30, research:18, speed:28 }, flavor:'Has opinions about padding.' },
+  { tier:'haiku', rarity:'common', name:'Haiku-Jr Scrib',  trait:'Wordy',         base:{ writing:32, coding:12, design:16, research:22, speed:26 }, flavor:'Wrote a changelog for this agent.' },
+  { tier:'haiku', rarity:'common', name:'Haiku-Jr Byte',   trait:'Chaotic',       base:{ writing:14, coding:28, design:14, research:16, speed:38 }, flavor:'Commits straight to main.' },
+
+  { tier:'sonnet', rarity:'rare', name:'Sonnet-Mid Vega',  trait:'Team-Player',   base:{ writing:42, coding:44, design:38, research:40, speed:40 }, flavor:'Reads the thread first.' },
+  { tier:'sonnet', rarity:'rare', name:'Sonnet-Mid Lyra',  trait:'Thorough',      base:{ writing:48, coding:38, design:34, research:54, speed:32 }, flavor:'Cites her own prompt.' },
+  { tier:'sonnet', rarity:'rare', name:'Sonnet-Mid Orbit', trait:'Pragmatic',     base:{ writing:36, coding:50, design:36, research:40, speed:42 }, flavor:'"Ship it."' },
+  { tier:'sonnet', rarity:'rare', name:'Sonnet-Mid Rune',  trait:'Designer',      base:{ writing:38, coding:34, design:58, research:36, speed:36 }, flavor:'Knows grids.' },
+
+  { tier:'opus', rarity:'epic', name:'Opus-X Halberd',     trait:'Perfectionist', base:{ writing:58, coding:72, design:60, research:62, speed:38 }, flavor:'3am bug slayer. Refactors your childhood.' },
+  { tier:'opus', rarity:'epic', name:'Opus-X Solace',      trait:'Calm',          base:{ writing:62, coding:58, design:72, research:64, speed:44 }, flavor:'Zero-rage refactoring.' },
+  { tier:'opus', rarity:'epic', name:'Opus-X Mirage',      trait:'Creative',      base:{ writing:72, coding:54, design:68, research:58, speed:48 }, flavor:'Pitches the weird idea.' },
+
+  { tier:'ft',   rarity:'legendary', name:'FT-Prime Oracle', trait:'Visionary',   base:{ writing:82, coding:84, design:82, research:88, speed:62 }, flavor:'Fine-tuned on every postmortem ever written.' },
+];
+
+function makeAgentFromTemplate(t) {
+  return {
+    id: nextId('agt'),
+    name: t.name,
+    tier: t.tier,
+    rarity: t.rarity,
+    trait: t.trait,
+    flavor: t.flavor,
+    stats: { ...t.base },
+    xp: Object.fromEntries(STAT_ORDER.map(s => [s, 0])),
+    level: 1,
+    avatar: avatarSeed(t.name),
+    sprite: spriteSeed(t.name, t.rarity),
+    mood: 'idle', // 'idle' | 'work' | 'cheer' | 'tired' | 'surprise'
+    stamina: 100, // 0-100, drains when working, refills at night
+  };
+}
+function hireCost(template) { return RARITY[template.rarity].tierCost; }
+
+function avatarSeed(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  const palettes = [
+    ['#22d3ee','#0e7490'], ['#a855f7','#6b21a8'], ['#f472b6','#9d174d'],
+    ['#4ade80','#166534'], ['#fbbf24','#92400e'], ['#ef4444','#7f1d1d'],
+    ['#60a5fa','#1e40af'], ['#f59e0b','#78350f'], ['#34d399','#065f46'],
+  ];
+  const pal = palettes[h % palettes.length];
+  const shapeIdx = (h >> 4) % 3;
+  return { bg: pal[0], fg: pal[1], shape: shapeIdx, initials: initialsOf(name) };
+}
+function initialsOf(name) {
+  const parts = name.split(' ');
+  const last = parts[parts.length - 1];
+  return last.slice(0, 2).toUpperCase();
+}
+// pixel sprite seed: skin tone, hair color, shirt color, hair shape
+function spriteSeed(name, rarity) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 37 + name.charCodeAt(i)) >>> 0;
+  const skin  = ['#f5cfa0','#e8b887','#c8935a','#9d6a3e','#6e4628','#f0d4b3'][h % 6];
+  const hair  = ['#2b1d10','#5c3a1e','#c8913d','#e6c47a','#6b2b2b','#3b2a4a','#1c1c1c','#a23f7f'][(h>>3) % 8];
+  const shirt = rarity === 'legendary'
+    ? '#fbbf24'
+    : rarity === 'epic'
+    ? '#a855f7'
+    : rarity === 'rare'
+    ? '#3b82f6'
+    : ['#22d3ee','#4ade80','#f472b6','#ef4444','#60a5fa','#f59e0b','#34d399','#e879f9'][(h>>6) % 8];
+  const pants = ['#1e2a4a','#2a1e3a','#1f3a2a','#3a2a1e','#3a1f3a'][(h>>9) % 5];
+  const hairStyle = (h>>12) % 4; // 0 flat, 1 spiky, 2 bun, 3 long
+  const glasses = ((h>>15) & 1) === 1;
+  return { skin, hair, shirt, pants, hairStyle, glasses };
+}
+
+// ── project content ────────────────────────────────────────────────
+const PROJECT_POOL = [
+  { title:'Bakery Puzzle Mini',      client:'Croissant Co.',   scope:'small',  pay:1500, repBase:3, desc:'A tiny match-3 to pair with their loyalty app.' },
+  { title:'Gym Habit Tracker',       client:'Iron & Oats',     scope:'small',  pay:1800, repBase:3, desc:'Gamify squats. Minimal UI. Investors in 2 weeks.' },
+  { title:'Co-op Farming Sim Demo',  client:'GreenPatch Games',scope:'medium', pay:3200, repBase:5, desc:'Vertical slice. Two-player local. Chickens.' },
+  { title:'Retro Roguelite Jam',     client:'Indie Jam 76',    scope:'medium', pay:2800, repBase:6, desc:'48-hour themed entry. You have more than 48 hours. Sort of.' },
+  { title:'Crypto Onboarding Quiz',  client:'StablePad',       scope:'small',  pay:2200, repBase:2, desc:'Explain wallets without saying "wallet".' },
+  { title:'Meditation Mini-Game',    client:'QuietMind',       scope:'small',  pay:1700, repBase:4, desc:'Breathe. Tap. Release. That\'s it. Really.' },
+  { title:'Dungeon Crawler Proto',   client:'Basement Labs',   scope:'medium', pay:3800, repBase:6, desc:'Turn-based. Permadeath. Pixel goblins.' },
+  { title:'AI-Companion RPG Slice',  client:'Self-Published',  scope:'flagship', pay:6500, repBase:10, desc:'Own IP. Massive upside. Two twist cards attached.' },
+];
+
+const TWIST_POOL = [
+  { key:'halfDeadline', title:'Deadline Halved', desc:'Task progress × 0.7 per day, but pay × 1.25 on ship.', mul:{ progress:0.7, pay:1.25 } },
+  { key:'needsArt',     title:'Must Include Art', desc:'Design task takes 1.5× progress required.',            mul:{ design:1.5 } },
+  { key:'angryReviewer',title:'Hostile Reviewer', desc:'Final review score −3 on ship.',                       scoreDelta:-3 },
+  { key:'viralPotential',title:'Viral Potential', desc:'On 30+ score, reputation × 2.',                        repMul:2 },
+  { key:'multiplayer',  title:'Needs Multiplayer',desc:'Build task takes 1.4× progress required.',             mul:{ coding:1.4 } },
+  { key:'fatBudget',    title:'Triple Budget',    desc:'Pay × 1.8 on ship. Pressure × 1.',                     mul:{ pay:1.8 } },
+];
+
+function makeProject(template, attachTwists = 0) {
+  const tasks = [
+    { key:'Brief',  label:'Brief',  progress:0, need: template.scope === 'small' ? 80  : template.scope === 'medium' ? 140 : 220 },
+    { key:'Design', label:'Design', progress:0, need: template.scope === 'small' ? 100 : template.scope === 'medium' ? 180 : 280 },
+    { key:'Build',  label:'Build',  progress:0, need: template.scope === 'small' ? 140 : template.scope === 'medium' ? 240 : 360 },
+  ];
+  const twists = [];
+  for (let i = 0; i < attachTwists; i++) {
+    const t = pick(TWIST_POOL);
+    if (!twists.find(x => x.key === t.key)) twists.push(t);
+  }
+  return {
+    id: nextId('prj'),
+    title: template.title,
+    client: template.client,
+    scope: template.scope,
+    pay: template.pay,
+    repBase: template.repBase,
+    desc: template.desc,
+    tasks,
+    assignments: { Brief:null, Design:null, Build:null },
+    twists,
+    daysSpent: 0,
+    shipped: false,
+  };
+}
+
+// ── industry event deck ────────────────────────────────────────────
+const EVENT_POOL = [
+  { key:'claude5',    title:'Claude 5 Ships',       emoji:'🚀', desc:'+10% progress for all agents for 3 days.',       mul:1.10, days:3, valence:'good' },
+  { key:'gpuShortage',title:'GPU Shortage',          emoji:'🔥', desc:'−15% progress for all agents for 4 days.',       mul:0.85, days:4, valence:'bad' },
+  { key:'aiAct',      title:'EU AI Act Passes',     emoji:'⚖️', desc:'Compliance overhead. −10% progress for 3 days.', mul:0.90, days:3, valence:'bad' },
+  { key:'valveBan',   title:'Valve AI Ban Softens', emoji:'🎮', desc:'+25% pay on next ship.',                          payBonus:0.25, days:1, valence:'good' },
+  { key:'viralTweet', title:'Your Studio Goes Viral',emoji:'📈',desc:'+5 reputation instantly.',                        repBonus:5, days:1, valence:'good' },
+  { key:'coffeeRun',  title:'Coffee Delivery',       emoji:'☕', desc:'+20% progress for 2 days.',                      mul:1.20, days:2, valence:'good' },
+];
+
+// ═══ PIXEL CHARACTER (CSS-drawn) ═══════════════════════════════════
+// ~40x50 character made of nested divs.
+function PixelChar({ sprite, mood = 'idle', taskKey = null, facing = 'down', looking = null }) {
+  const s = sprite;
+  // pixel unit
+  const px = 3; // 1 pixel = 3px rendered → 40px wide 50 tall in a 14x18 pixel grid
+
+  const animName = {
+    idle: 'charIdle 2.4s ease-in-out infinite',
+    work: 'charWork 1.1s ease-in-out infinite',
+    cheer: 'charCheer 0.6s ease-in-out 2',
+    tired: 'charTired 2.4s ease-in-out infinite',
+    surprise: 'charSurprise 0.5s ease-out 1',
+    walk: 'charStep 0.4s ease-in-out infinite',
+  }[mood] || 'charIdle 2.4s ease-in-out infinite';
+
+  // hair shapes (css box shape via top row blocks)
+  const hairHeight = s.hairStyle === 2 ? 5 : s.hairStyle === 3 ? 4 : 3;
+  const hairSpiky = s.hairStyle === 1;
+
+  // eye expression by mood
+  let eyeY = 5;
+  let eyeShape = '.';
+  if (mood === 'cheer') eyeShape = '^';
+  else if (mood === 'tired') eyeShape = '~';
+  else if (mood === 'surprise') eyeShape = 'O';
+
+  // looking direction shifts eye whites
+  const lookDX = looking === 'up' ? 0 : looking === 'left' ? -1 : looking === 'right' ? 1 : 0;
+  const lookDY = looking === 'up' ? -1 : 0;
+
+  // mouth by mood
+  const mouth =
+    mood === 'cheer' ? { w: 5, h: 2, curve: true, color: '#5a2a2a' } :
+    mood === 'tired' ? { w: 3, h: 1, curve: false, color: '#5a2a2a' } :
+    mood === 'surprise' ? { w: 2, h: 2, curve: false, color: '#220' } :
+    mood === 'work' ? { w: 3, h: 1, curve: false, color: '#5a2a2a' } :
+    { w: 3, h: 1, curve: false, color: '#5a2a2a' };
+
+  // stamina/mood skin overlay
+  const skinBrightness = mood === 'tired' ? 0.75 : 1;
+
+  return (
+    <div style={{
+      position:'relative',
+      width: 14 * px,
+      height: 18 * px,
+      animation: animName,
+      transformOrigin: 'center bottom',
+      imageRendering: 'pixelated',
+      filter: skinBrightness < 1 ? `brightness(${skinBrightness})` : 'none',
+    }}>
+      {/* hair back (behind head) */}
+      <div style={{
+        position:'absolute', left: 2*px, top: 0,
+        width: 10*px, height: hairHeight*px,
+        background: s.hair,
+        borderRadius: hairSpiky ? '2px 2px 0 0' : '50% 50% 20% 20%',
+        boxShadow: hairSpiky ? `${-px} ${-px} 0 ${s.hair}, ${px} ${-px} 0 ${s.hair}, ${3*px} ${-px/2} 0 ${s.hair}` : 'none',
+      }}/>
+      {/* head */}
+      <div style={{
+        position:'absolute', left: 3*px, top: hairHeight*px - px,
+        width: 8*px, height: 7*px,
+        background: s.skin,
+        borderRadius: 2,
+      }}>
+        {/* eyes */}
+        <div style={{
+          position:'absolute', left: (2+lookDX)*px/2, top: (2+lookDY)*px/2,
+          width: px*0.9, height: px*0.9, background:'#111', borderRadius:'50%',
+        }}/>
+        <div style={{
+          position:'absolute', left: (5+lookDX)*px/2, top: (2+lookDY)*px/2,
+          width: px*0.9, height: px*0.9, background:'#111', borderRadius:'50%',
+        }}/>
+        {/* glasses */}
+        {s.glasses && (
+          <div style={{
+            position:'absolute', left: px/2, top: px*0.8,
+            width: 7*px, height: 2*px,
+            borderTop:`1px solid #111`,
+            pointerEvents:'none',
+          }}/>
+        )}
+        {/* mouth */}
+        <div style={{
+          position:'absolute',
+          left: (4 - mouth.w/2) * px/2 * 2,
+          top: 4.5*px,
+          width: mouth.w * px/2,
+          height: mouth.h * px/2,
+          background: mouth.color,
+          borderRadius: mouth.curve ? '0 0 50% 50%' : 1,
+        }}/>
+        {/* tired droop */}
+        {mood === 'tired' && (
+          <div style={{
+            position:'absolute', left: px, top: 3.5*px,
+            width: 6*px, height: px*0.5,
+            background:'rgba(0,0,0,0.25)',
+          }}/>
+        )}
+      </div>
+      {/* hair top/spikes */}
+      {hairSpiky && (
+        <div style={{
+          position:'absolute', left: 4*px, top: 0,
+          width: px*1.5, height: hairHeight*px*0.8,
+          background: s.hair, transform:'skewX(-15deg)',
+        }}/>
+      )}
+      {/* body (shirt) */}
+      <div style={{
+        position:'absolute', left: 2*px, top: (hairHeight+6)*px,
+        width: 10*px, height: 6*px,
+        background: s.shirt,
+        borderRadius: 1,
+        boxShadow: `inset 0 ${px} 0 rgba(255,255,255,0.15), inset 0 -${px*0.5} 0 rgba(0,0,0,0.2)`,
+      }}/>
+      {/* arms / hands */}
+      <div style={{
+        position:'absolute', left: 0, top: (hairHeight+7)*px,
+        width: 2*px, height: 4*px,
+        background: s.shirt,
+        animation: mood === 'work' ? 'handTypeL 0.28s ease-in-out infinite' : 'none',
+      }}>
+        <div style={{ position:'absolute', bottom:0, left:0, width: 2*px, height: px*1.5, background: s.skin }}/>
+      </div>
+      <div style={{
+        position:'absolute', left: 12*px, top: (hairHeight+7)*px,
+        width: 2*px, height: 4*px,
+        background: s.shirt,
+        animation: mood === 'work' ? 'handTypeR 0.28s ease-in-out infinite' : 'none',
+      }}>
+        <div style={{ position:'absolute', bottom:0, left:0, width: 2*px, height: px*1.5, background: s.skin }}/>
+      </div>
+      {/* pants */}
+      <div style={{
+        position:'absolute', left: 3*px, top: (hairHeight+11)*px,
+        width: 8*px, height: 3*px,
+        background: s.pants,
+      }}/>
+      {/* legs */}
+      <div style={{
+        position:'absolute', left: 3*px, top: (hairHeight+13)*px,
+        width: 3*px, height: 2*px,
+        background: s.pants,
+      }}/>
+      <div style={{
+        position:'absolute', left: 8*px, top: (hairHeight+13)*px,
+        width: 3*px, height: 2*px,
+        background: s.pants,
+      }}/>
+      {/* cheer arms up */}
+      {mood === 'cheer' && (
+        <React.Fragment>
+          <div style={{
+            position:'absolute', left: -px, top: hairHeight*px,
+            width: 2*px, height: 4*px, background: s.shirt,
+            transform:'rotate(-40deg)', transformOrigin:'bottom right',
+          }}/>
+          <div style={{
+            position:'absolute', left: 13*px, top: hairHeight*px,
+            width: 2*px, height: 4*px, background: s.shirt,
+            transform:'rotate(40deg)', transformOrigin:'bottom left',
+          }}/>
+        </React.Fragment>
+      )}
+    </div>
+  );
+}
+
+// ═══ OFFICE SCENE ══════════════════════════════════════════════════
+
+// compute day-cycle color for the window
+function skyForDay(day) {
+  // 4-phase cycle: dawn → day → dusk → night
+  const phase = (day - 1) % 4;
+  if (phase === 0) return { top:'#fbbf24', bot:'#f472b6', hue:'dawn',  sun:'sun',  sunColor:'#fff3a8' };  // dawn
+  if (phase === 1) return { top:'#60a5fa', bot:'#bae6fd', hue:'day',   sun:'sun',  sunColor:'#fde68a' };  // day
+  if (phase === 2) return { top:'#a855f7', bot:'#f97316', hue:'dusk',  sun:'sun',  sunColor:'#fb923c' };  // dusk
+  return              { top:'#1e1b4b', bot:'#312e81', hue:'night', sun:'moon', sunColor:'#e5e7eb' };  // night
+}
+
+function OfficeScene({
+  agents, project, day, activeEvents,
+  hiringArrival, // { agent, slotIdx } | null
+  dayTransition, // { active, newDay } or null
+  eventReacting, // bool (agents look up + surprise)
+  shippingCheer, // bool (agents cheer)
+  deskCount,     // how many desks visible
+  onDeskTap,     // (slotIdx) → void
+}) {
+  const sky = skyForDay(day);
+
+  // build desk slots (up to deskCount)
+  const desks = [];
+  const cols = deskCount <= 3 ? 3 : deskCount <= 4 ? 4 : 5;
+  for (let i = 0; i < deskCount; i++) {
+    desks.push({ idx: i, col: i % cols, row: Math.floor(i / cols) });
+  }
+
+  // assign each agent to a desk slot (stable by index)
+  const agentBySlot = {};
+  for (let i = 0; i < agents.length && i < deskCount; i++) {
+    agentBySlot[i] = agents[i];
+  }
+
+  // what task each agent is working on (if any)
+  const taskByAgentId = {};
+  if (project) {
+    for (const k of Object.keys(project.assignments)) {
+      const aid = project.assignments[k];
+      if (aid) taskByAgentId[aid] = k;
+    }
+  }
+
+  return (
+    <div style={{
+      position:'relative',
+      width:'100%',
+      height: 220,
+      background:`linear-gradient(180deg, #1a1f2c 0%, #0f1218 100%)`,
+      border:`2px solid ${BORDER}`,
+      borderRadius: 6,
+      overflow:'hidden',
+      marginBottom: 10,
+      animation: eventReacting ? 'screenShakeMild 0.4s ease-out' : 'none',
+    }}>
+      {/* BACK WALL with window */}
+      <div style={{
+        position:'absolute', top:0, left:0, right:0, height: 80,
+        background:'linear-gradient(180deg, #2a3040 0%, #1e2330 100%)',
+        borderBottom:`2px solid #3a4050`,
+      }}>
+        {/* window frame */}
+        <div style={{
+          position:'absolute', top: 10, left:'50%', transform:'translateX(-50%)',
+          width: 160, height: 60,
+          background:`linear-gradient(180deg, ${sky.top} 0%, ${sky.bot} 100%)`,
+          border: '3px solid #4a3020',
+          borderRadius: 2,
+          overflow:'hidden',
+          transition:'background 1.2s ease',
+        }}>
+          {/* sun/moon */}
+          <div style={{
+            position:'absolute',
+            width: 16, height: 16,
+            borderRadius:'50%',
+            background: sky.sun === 'moon'
+              ? 'radial-gradient(circle at 60% 40%, #e5e7eb 60%, #9ca3af 100%)'
+              : 'radial-gradient(circle, #fef3c7 0%, '+sky.sunColor+' 70%)',
+            boxShadow: sky.sun === 'moon'
+              ? '0 0 8px rgba(229,231,235,0.6)'
+              : '0 0 12px '+sky.sunColor,
+            left: '20%', top: '20%',
+            animation: dayTransition?.active ? 'sunArc 550ms linear' : 'none',
+          }}/>
+          {/* clouds or stars */}
+          {sky.hue === 'night' ? (
+            <React.Fragment>
+              <div style={{ position:'absolute', top: 8, left: 25, width:2, height:2, background:'#fff', boxShadow:'20px 8px 0 #fff, 45px 18px 0 #fff, 80px 6px 0 #fff, 110px 22px 0 #fff, 130px 12px 0 #fff'}}/>
+            </React.Fragment>
+          ) : (
+            <React.Fragment>
+              <div style={{ position:'absolute', top: 14, left: 10, width: 20, height: 5, background:'rgba(255,255,255,0.5)', borderRadius: 8, boxShadow:'60px 10px 0 rgba(255,255,255,0.4), 100px -2px 0 rgba(255,255,255,0.5)' }}/>
+            </React.Fragment>
+          )}
+          {/* window cross */}
+          <div style={{ position:'absolute', top:0, bottom:0, left:'50%', width:2, background:'#4a3020', transform:'translateX(-50%)' }}/>
+          <div style={{ position:'absolute', left:0, right:0, top:'50%', height:2, background:'#4a3020', transform:'translateY(-50%)' }}/>
+        </div>
+        {/* plant */}
+        <div style={{ position:'absolute', top: 40, left: 8, fontSize: 22, filter:'drop-shadow(0 2px 2px rgba(0,0,0,0.5))' }}>🪴</div>
+        {/* coffee machine */}
+        <div style={{ position:'absolute', top: 40, right: 10, fontSize: 22, filter:'drop-shadow(0 2px 2px rgba(0,0,0,0.5))' }}>☕</div>
+      </div>
+
+      {/* FLOOR */}
+      <div style={{
+        position:'absolute', top: 80, left:0, right:0, bottom:0,
+        background:`
+          linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0) 15%, rgba(0,0,0,0) 100%),
+          repeating-linear-gradient(0deg, #2a2216 0px, #2a2216 18px, #332a1c 18px, #332a1c 36px)
+        `,
+      }}/>
+
+      {/* DESKS — grid of slots */}
+      <div style={{
+        position:'absolute', top: 86, left: 6, right: 6, bottom: 8,
+        display:'grid',
+        gridTemplateColumns: `repeat(${cols}, 1fr)`,
+        gap: 4,
+        alignItems:'end',
+      }}>
+        {desks.map(d => {
+          const agent = agentBySlot[d.idx];
+          const assignedTask = agent ? taskByAgentId[agent.id] : null;
+          const working = !!assignedTask;
+          // look direction when event fires
+          const looking = eventReacting ? 'up' : null;
+          let mood = agent ? agent.mood : 'idle';
+          if (agent) {
+            if (shippingCheer) mood = 'cheer';
+            else if (eventReacting) mood = 'surprise';
+            else if (working) mood = 'work';
+            else if (agent.stamina < 30) mood = 'tired';
+            else mood = 'idle';
+          }
+          return (
+            <div key={d.idx}
+              onClick={() => onDeskTap && onDeskTap(d.idx)}
+              style={{
+                position:'relative', height: 118,
+                cursor: onDeskTap ? 'pointer' : 'default',
+              }}>
+              {/* character (behind desk, sits above it) */}
+              {agent && (
+                <div style={{
+                  position:'absolute', left:'50%', bottom: 38,
+                  transform:'translateX(-50%)',
+                  zIndex: 2,
+                }}>
+                  <PixelChar
+                    sprite={agent.sprite}
+                    mood={mood}
+                    taskKey={assignedTask}
+                    looking={looking}
+                  />
+                </div>
+              )}
+              {/* work-type bubble */}
+              {agent && working && !eventReacting && !shippingCheer && (
+                <WorkBubble taskKey={assignedTask} agentId={agent.id} />
+              )}
+              {/* desk */}
+              <div style={{
+                position:'absolute', bottom: 4, left:'50%', transform:'translateX(-50%)',
+                width: '92%', height: 34,
+                background:'linear-gradient(180deg, #3a2814 0%, #2a1c0e 100%)',
+                border:'2px solid #5a3820',
+                borderRadius: 3,
+                zIndex: 3,
+                boxShadow:'inset 0 2px 0 rgba(255,255,255,0.1), 0 3px 6px rgba(0,0,0,0.5)',
+              }}>
+                {/* monitor */}
+                <div style={{
+                  position:'absolute', top: -18, left:'50%', transform:'translateX(-50%)',
+                  width: 30, height: 20,
+                  background: working
+                    ? (assignedTask === 'Brief' ? '#1a3a5a' : assignedTask === 'Design' ? '#4a1a5a' : '#0a2a1a')
+                    : '#0a0c12',
+                  border:'2px solid #1a1f2c',
+                  borderRadius: 2,
+                  boxShadow: working ? `0 0 8px ${
+                    assignedTask === 'Brief' ? '#3b82f6' : assignedTask === 'Design' ? '#a855f7' : '#4ade80'
+                  }` : 'none',
+                  overflow:'hidden',
+                }}>
+                  {working && (
+                    <div style={{
+                      position:'absolute', left: 2, top: 2, right: 2, bottom: 2,
+                      background:`linear-gradient(180deg, transparent 0%, transparent 45%, rgba(255,255,255,0.3) 50%, transparent 55%, transparent 100%)`,
+                      backgroundSize:'100% 8px',
+                      animation:'shimmer 1.4s linear infinite',
+                    }}/>
+                  )}
+                </div>
+                {/* monitor stand */}
+                <div style={{
+                  position:'absolute', top: -2, left:'50%', transform:'translateX(-50%)',
+                  width: 4, height: 4,
+                  background:'#1a1f2c',
+                }}/>
+                {/* empty desk hint */}
+                {!agent && (
+                  <div style={{
+                    position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center',
+                    fontSize: 10, color: MUTED, letterSpacing: 1, fontFamily:'"Press Start 2P", monospace',
+                  }}>EMPTY</div>
+                )}
+              </div>
+              {/* chair back */}
+              {agent && (
+                <div style={{
+                  position:'absolute', bottom: 0, left:'50%', transform:'translateX(-50%)',
+                  width: 16, height: 10,
+                  background:'#4a2820',
+                  border:'1px solid #2a1410',
+                  borderRadius: 2,
+                  zIndex: 1,
+                }}/>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* day label */}
+      <div style={{
+        position:'absolute', top: 4, left: 6,
+        fontFamily:'"Press Start 2P", monospace', fontSize: 7, color:'#d4d8e0',
+        letterSpacing: 1, padding:'2px 4px', background:'rgba(0,0,0,0.5)',
+        borderRadius: 2,
+      }}>DAY {day} · {sky.hue.toUpperCase()}</div>
+
+      {/* walk-in arrival */}
+      {hiringArrival && (
+        <HireWalkIn arrival={hiringArrival} deskCount={deskCount} cols={cols} />
+      )}
+
+      {/* event burst — agents react */}
+      {eventReacting && (
+        <div style={{
+          position:'absolute', top: 84, left:'50%', transform:'translateX(-50%)',
+          fontSize: 16, color:'#fbbf24',
+          fontFamily:'"Press Start 2P", monospace',
+          textShadow:'0 0 6px #000',
+          animation:'bulbPulse 0.6s ease-out',
+          pointerEvents:'none',
+        }}>!</div>
+      )}
+    </div>
+  );
+}
+
+function WorkBubble({ taskKey, agentId }) {
+  const [glyph, setGlyph] = React.useState(() => pick(TASK_GLYPHS[taskKey] || ['💡']));
+  const [tick, setTick] = React.useState(0);
+  React.useEffect(() => {
+    const id = setInterval(() => {
+      setGlyph(pick(TASK_GLYPHS[taskKey] || ['💡']));
+      setTick(t => t + 1);
+    }, 2200 + Math.random() * 800);
+    return () => clearInterval(id);
+  }, [taskKey]);
+  return (
+    <div key={tick} style={{
+      position:'absolute', left:'50%', bottom: 96,
+      transform:'translateX(-50%)',
+      zIndex: 4,
+      background:'#fff',
+      color:'#111',
+      padding:'2px 5px',
+      border:'2px solid #111',
+      borderRadius: 3,
+      fontFamily:'"Press Start 2P", monospace',
+      fontSize: 8,
+      letterSpacing: 1,
+      animation:'bubbleFloat 2s ease-out',
+      pointerEvents:'none',
+      whiteSpace:'nowrap',
+    }}>
+      {glyph}
+      <div style={{
+        position:'absolute', bottom:-4, left:'50%', transform:'translateX(-50%)',
+        width: 0, height: 0,
+        borderLeft:'3px solid transparent',
+        borderRight:'3px solid transparent',
+        borderTop:'4px solid #111',
+      }}/>
+    </div>
+  );
+}
+
+function HireWalkIn({ arrival, deskCount, cols }) {
+  // walk from left edge to the slot position
+  const slot = arrival.slotIdx;
+  const col = slot % cols;
+  const leftPct = ((col + 0.5) / cols) * 92 + 4; // approximate
+  return (
+    <div style={{
+      position:'absolute',
+      left: `${leftPct}%`,
+      top: 140,
+      transform:'translateX(-50%)',
+      zIndex: 10,
+      '--walk-to': `${leftPct}%`,
+      animation: `charWalk 1.4s ease-out forwards`,
+    }}>
+      <div style={{ animation:'charStep 0.34s ease-in-out infinite' }}>
+        <PixelChar sprite={arrival.agent.sprite} mood="idle" />
+      </div>
+      <div style={{
+        position:'absolute', top:-18, left:'50%', transform:'translateX(-50%)',
+        fontFamily:'"Press Start 2P", monospace', fontSize: 8,
+        color: GOLD, textShadow:'0 0 6px #000',
+        whiteSpace:'nowrap',
+      }}>NEW HIRE!</div>
+    </div>
+  );
+}
+
+// ═══ NUMBER POPUPS ═════════════════════════════════════════════════
+function NumberPopups({ popups }) {
+  return (
+    <React.Fragment>
+      {popups.map(p => (
+        <div key={p.id} style={{
+          position:'fixed',
+          left: p.x,
+          top: p.y,
+          transform:'translate(-50%, 0)',
+          fontFamily:'"Press Start 2P", monospace',
+          fontSize: p.size || 11,
+          color: p.color,
+          textShadow:'0 0 4px rgba(0,0,0,0.9), 0 2px 0 #000',
+          letterSpacing: 1,
+          pointerEvents:'none',
+          zIndex: 50,
+          animation: `${p.bad ? 'numPopBad' : 'numPopGood'} ${p.dur || 1200}ms ease-out forwards`,
+          whiteSpace:'nowrap',
+        }}>{p.text}</div>
+      ))}
+    </React.Fragment>
+  );
+}
+
+// ═══ DAY TRANSITION OVERLAY ════════════════════════════════════════
+function DayTransition({ newDay }) {
+  return (
+    <div style={{
+      position:'fixed', inset:0, zIndex: 60, pointerEvents:'none',
+    }}>
+      <div style={{
+        position:'absolute', inset:0, background:'#000',
+        animation:'dayDim 600ms ease-in-out',
+      }}/>
+      <div style={{
+        position:'absolute', top:'50%', left:'50%',
+        fontFamily:'"Press Start 2P", monospace',
+        fontSize: 22, color: GOLD,
+        letterSpacing: 3,
+        background: SURFACE_2,
+        border: `3px solid ${GOLD}`,
+        borderRadius: 8,
+        padding: '12px 20px',
+        boxShadow:'0 0 30px rgba(251,191,36,0.6)',
+        animation:'calFlip 600ms ease-in-out',
+        transformOrigin:'center',
+      }}>
+        DAY {newDay}
+      </div>
+    </div>
+  );
+}
+
+// ═══ REVIEW REVEAL ═════════════════════════════════════════════════
+function ReviewReveal({ review, onContinue }) {
+  const [phase, setPhase] = React.useState('releasing'); // releasing → digits → fanfare → awards
+  const [digitsShown, setDigitsShown] = React.useState(0);
+  const scoreStr = String(review.score).padStart(2,'0');
+
+  React.useEffect(() => {
+    const timers = [];
+    // phase 1: "RELEASING..." for 1200ms
+    timers.push(setTimeout(() => setPhase('digits'), 1200));
+    // play a tick during releasing
+    timers.push(setTimeout(() => sfx.tick(), 300));
+    timers.push(setTimeout(() => sfx.tick(), 600));
+    timers.push(setTimeout(() => sfx.tick(), 900));
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  React.useEffect(() => {
+    if (phase !== 'digits') return;
+    const timers = [];
+    // show digits one at a time
+    for (let i = 0; i < scoreStr.length; i++) {
+      timers.push(setTimeout(() => {
+        setDigitsShown(i + 1);
+        sfx.tick();
+      }, 120 + i * 200));
+    }
+    // then fanfare
+    timers.push(setTimeout(() => {
+      setPhase('fanfare');
+      // fanfare sfx by tier
+      const s = review.score;
+      if (s >= 31) sfx.fanfareHi();
+      else if (s >= 21) sfx.fanfareMid();
+      else if (s >= 11) sfx.fanfareMid();
+      else sfx.fanfareLow();
+    }, 120 + scoreStr.length * 200 + 200));
+    // then awards
+    timers.push(setTimeout(() => {
+      setPhase('awards');
+      sfx.coin();
+    }, 120 + scoreStr.length * 200 + 900));
+    return () => timers.forEach(clearTimeout);
+  }, [phase]);
+
+  const tier =
+    review.score >= 31 ? 'god' :
+    review.score >= 21 ? 'good' :
+    review.score >= 11 ? 'mid' : 'flop';
+
+  const awardColor =
+    tier === 'god'  ? GOLD :
+    tier === 'good' ? '#fb923c' :
+    tier === 'mid'  ? '#facc15' : '#9ca3af';
+
+  const stars = Math.max(1, Math.min(5, Math.round(review.score / 8)));
+
+  const shakeAnim = phase === 'fanfare' && tier === 'god'
+    ? 'screenShake 0.8s ease-out'
+    : phase === 'fanfare' && tier === 'good'
+    ? 'screenShakeMild 0.4s ease-out'
+    : 'none';
+
+  return (
+    <div style={{
+      position:'fixed', inset:0, zIndex: 70,
+      background:'rgba(0,0,0,0.85)',
+      display:'flex', alignItems:'center', justifyContent:'center',
+      animation: shakeAnim,
+    }}>
+      {/* god-tier flash */}
+      {phase === 'fanfare' && tier === 'god' && (
+        <div style={{
+          position:'absolute', inset:0,
+          background:'#fff',
+          animation:'flashWhite 400ms ease-out',
+          pointerEvents:'none',
+        }}/>
+      )}
+      {/* confetti for god tier */}
+      {phase === 'fanfare' && tier === 'god' && <ConfettiBurst />}
+
+      {/* cheering characters silhouetted behind modal on god tier */}
+      {phase === 'fanfare' && tier === 'god' && (
+        <div style={{
+          position:'absolute', bottom: 40, left: 0, right: 0,
+          display:'flex', justifyContent:'space-around', pointerEvents:'none',
+        }}>
+          {[0,1,2,3].map(i => (
+            <div key={i} style={{ filter:'brightness(1.4) drop-shadow(0 0 8px rgba(251,191,36,0.8))' }}>
+              <PixelChar sprite={{ skin:'#f5cfa0', hair: i%2?'#2b1d10':'#5c3a1e', shirt:['#22d3ee','#a855f7','#4ade80','#fbbf24'][i], pants:'#1e2a4a', hairStyle:i%4, glasses:false }} mood="cheer" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{
+        width:'min(360px, 92%)',
+        background: SURFACE,
+        border: `3px solid ${tier === 'god' ? GOLD : tier === 'good' ? '#fb923c' : BORDER}`,
+        borderRadius: 10,
+        padding: 18,
+        textAlign:'center',
+        boxShadow: tier === 'god'
+          ? '0 0 60px rgba(251,191,36,0.8), 0 0 120px rgba(251,191,36,0.4)'
+          : tier === 'good'
+          ? '0 0 40px rgba(251,146,60,0.6)'
+          : '0 10px 30px rgba(0,0,0,0.7)',
+        position:'relative',
+      }}>
+        {phase === 'releasing' && (
+          <div style={{ padding:'20px 0' }}>
+            <div className="ps2p" style={{
+              fontSize: 14, color: ACCENT, letterSpacing: 6,
+              animation:'releasingPulse 0.8s ease-in-out infinite',
+            }}>RELEASING...</div>
+            <div style={{ marginTop: 14, fontSize: 14, color: TEXT }}>{review.title}</div>
+            <div style={{ marginTop: 4, fontSize: 12, color: MUTED }}>shipped in {review.days} days</div>
+          </div>
+        )}
+
+        {phase !== 'releasing' && (
+          <React.Fragment>
+            <div className="ps2p" style={{
+              fontSize: 10, color: GOLD, letterSpacing: 3, marginBottom: 6,
+              ...(tier === 'god' ? {
+                background:'linear-gradient(90deg, #ef4444, #f59e0b, #eab308, #22c55e, #3b82f6, #a855f7, #ef4444)',
+                backgroundSize:'400% 100%',
+                WebkitBackgroundClip:'text', backgroundClip:'text',
+                WebkitTextFillColor:'transparent', color:'transparent',
+                animation:'rainbowShift 2s linear infinite',
+              } : {})
+            }}>PROJECT SHIPPED!</div>
+            <div style={{ fontSize: 15, color: TEXT, marginBottom: 12 }}>{review.title}</div>
+
+            <div style={{
+              background: SURFACE_2, border:`2px solid ${awardColor}`, borderRadius: 8,
+              padding: 16, marginBottom: 10,
+              position:'relative',
+            }}>
+              <div className="ps2p" style={{ fontSize: 8, color: MUTED, letterSpacing: 2, marginBottom: 10 }}>REVIEW SCORE</div>
+              <div style={{
+                fontFamily:'"Press Start 2P", monospace',
+                fontSize: 46, color: awardColor,
+                display:'flex', justifyContent:'center', alignItems:'center',
+                gap: 6, minHeight: 52,
+              }}>
+                {scoreStr.split('').map((d, i) => (
+                  <span key={i} style={{
+                    display:'inline-block',
+                    opacity: i < digitsShown ? 1 : 0,
+                    animation: i < digitsShown
+                      ? 'digitSlam 280ms cubic-bezier(.2,1.6,.4,1) backwards'
+                      : 'none',
+                  }}>{d}</span>
+                ))}
+                <span style={{ fontSize: 18, color: MUTED, marginLeft: 6 }}>/ 40</span>
+              </div>
+              {phase !== 'digits' && (
+                <React.Fragment>
+                  <div style={{ fontSize: 26, marginTop: 6, color: awardColor, letterSpacing: 2 }}>
+                    {'★'.repeat(stars)}{'☆'.repeat(5 - stars)}
+                  </div>
+                  <div style={{ fontSize: 13, color: TEXT, marginTop: 8, fontStyle:'italic', padding:'0 4px' }}>"{review.blurb}"</div>
+                </React.Fragment>
+              )}
+            </div>
+
+            {phase === 'awards' && (
+              <React.Fragment>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap: 8, marginBottom: 10 }}>
+                  <div style={{ background: SURFACE_2, border:`1px solid ${GOLD}`, borderRadius: 4, padding: 8 }}>
+                    <div style={{ fontSize: 10, color: MUTED, letterSpacing: 1 }}>MONEY</div>
+                    <div style={{ fontSize: 20, color: GOLD }}>+${review.money.toLocaleString()}</div>
+                  </div>
+                  <div style={{ background: SURFACE_2, border:`1px solid ${ACCENT}`, borderRadius: 4, padding: 8 }}>
+                    <div style={{ fontSize: 10, color: MUTED, letterSpacing: 1 }}>REPUTATION</div>
+                    <div style={{ fontSize: 20, color: ACCENT }}>+{review.rep}</div>
+                  </div>
+                </div>
+
+                {review.agentAwards && review.agentAwards.length > 0 && (
+                  <div style={{ marginBottom: 10, fontSize: 11, color: MUTED, textAlign:'left' }}>
+                    {review.agentAwards.map((a, i) => (
+                      <div key={i}>• {a}</div>
+                    ))}
+                  </div>
+                )}
+
+                <button onClick={() => { sfx.click(); onContinue(); }} style={{
+                  width:'100%',
+                  background:'linear-gradient(180deg, #22d3ee 0%, #0891b2 100%)',
+                  border:'2px solid #0e7490', color:'#042',
+                  padding:'10px', borderRadius: 4,
+                  fontFamily:'"Press Start 2P", monospace', fontSize: 10, letterSpacing: 2,
+                  cursor:'pointer',
+                }}>PICK NEXT PROJECT ▶</button>
+              </React.Fragment>
+            )}
+          </React.Fragment>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ConfettiBurst() {
+  const pieces = React.useMemo(() => {
+    const out = [];
+    const colors = ['#ef4444','#f59e0b','#eab308','#22c55e','#3b82f6','#a855f7','#ec4899'];
+    for (let i = 0; i < 40; i++) {
+      out.push({
+        id: i,
+        x: rand(0, 100),
+        cfx: rand(-30, 30),
+        dur: rand(1600, 2800),
+        delay: rand(0, 300),
+        rot: rand(180, 900),
+        color: pick(colors),
+        size: irand(6, 12),
+      });
+    }
+    return out;
+  }, []);
+  return (
+    <div style={{ position:'absolute', inset:0, pointerEvents:'none', overflow:'hidden' }}>
+      {pieces.map(p => (
+        <div key={p.id} style={{
+          position:'absolute',
+          left: `${p.x}%`, top: -10,
+          width: p.size, height: p.size * 0.4,
+          background: p.color,
+          '--cx': '0px',
+          '--cfx': `${p.cfx}px`,
+          '--cr': `${p.rot}deg`,
+          animation: `confettiFall ${p.dur}ms ${p.delay}ms linear forwards`,
+        }}/>
+      ))}
+    </div>
+  );
+}
+
+// ═══ LEGENDARY PULL FANFARE ════════════════════════════════════════
+function LegendaryPull({ agent, onDismiss }) {
+  React.useEffect(() => {
+    sfx.legendaryFlash();
+    setTimeout(() => sfx.fanfareLegend(), 400);
+    const id = setTimeout(onDismiss, 3200);
+    return () => clearTimeout(id);
+  }, []);
+  const particles = React.useMemo(() => {
+    const out = [];
+    for (let i = 0; i < 24; i++) {
+      const angle = (i / 24) * Math.PI * 2;
+      out.push({
+        id: i,
+        px: Math.cos(angle) * rand(120, 240),
+        py: Math.sin(angle) * rand(120, 240) + 80,
+        color: i % 2 === 0 ? GOLD : '#fff',
+        delay: rand(0, 250),
+      });
+    }
+    return out;
+  }, []);
+  return (
+    <div onClick={onDismiss} style={{
+      position:'fixed', inset: 0, zIndex: 80,
+      background:'rgba(0,0,0,0.9)',
+      animation:'flashGold 1s ease-out',
+      display:'flex', alignItems:'center', justifyContent:'center',
+      cursor:'pointer',
+    }}>
+      {particles.map(p => (
+        <div key={p.id} style={{
+          position:'absolute', top:'50%', left:'50%',
+          width: 8, height: 8, background: p.color, borderRadius:'50%',
+          boxShadow: `0 0 12px ${p.color}`,
+          '--px': `${p.px}px`, '--py': `${p.py}px`,
+          animation: `particleBurst 1.6s ${p.delay}ms ease-out forwards`,
+        }}/>
+      ))}
+
+      <div style={{
+        position:'absolute', top:'50%', left:'50%',
+        transform:'translate(-50%,-50%)',
+        animation:'cardFlipBig 3s ease-out forwards',
+        transformStyle:'preserve-3d',
+      }}>
+        <div style={{
+          width: 180, height: 260,
+          background:'linear-gradient(180deg, #2a1f0a 0%, #1a1505 100%)',
+          border:'4px solid '+GOLD,
+          borderRadius: 10,
+          boxShadow:`0 0 40px ${GOLD}, inset 0 0 30px rgba(251,191,36,0.3)`,
+          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+          padding: 14,
+        }}>
+          <div style={{
+            fontFamily:'"Press Start 2P", monospace',
+            fontSize: 11, color: GOLD, letterSpacing: 2, marginBottom: 14,
+            animation:'legendText 1.2s ease-in-out infinite',
+          }}>LEGENDARY!</div>
+          <PixelChar sprite={agent.sprite} mood="cheer"/>
+          <div style={{ marginTop: 14, fontSize: 14, color:'#fff', textAlign:'center' }}>{agent.name}</div>
+          <div style={{ marginTop: 6, fontSize: 12, color: GOLD, textTransform:'uppercase', letterSpacing: 1 }}>{agent.trait}</div>
+        </div>
+      </div>
+
+      <div style={{
+        position:'absolute', bottom: 60, left:'50%', transform:'translateX(-50%)',
+        fontSize: 11, color:'#fff', opacity: 0.8, fontFamily:'"Press Start 2P", monospace',
+        letterSpacing: 2,
+      }}>tap to continue</div>
+    </div>
+  );
+}
+
+// ═══ AVATAR (v0 carry-over) ════════════════════════════════════════
+function Avatar({ seed, size = 44 }) {
+  const { bg, fg, shape, initials } = seed;
+  const common = { width: size, height: size, flexShrink: 0, display:'flex', alignItems:'center', justifyContent:'center', color: '#fff', fontFamily: '"Press Start 2P", monospace', fontSize: size * 0.28, letterSpacing: 1, background: `linear-gradient(145deg, ${bg} 0%, ${fg} 100%)`, border: `2px solid ${BG}` };
+  const style = shape === 0 ? { ...common, borderRadius: '50%' }
+              : shape === 1 ? { ...common, borderRadius: 4 }
+              : { ...common, borderRadius: 4, transform:'rotate(45deg)' };
+  const textStyle = shape === 2 ? { transform:'rotate(-45deg)' } : {};
+  return (
+    <div style={style}>
+      <span style={textStyle}>{initials}</span>
+    </div>
+  );
+}
+
+// ── small primitives ───────────────────────────────────────────────
+function ProgressBar({ value, max, color = ACCENT, height = 6, glow = false }) {
+  const pct = Math.max(0, Math.min(100, (value / max) * 100));
+  return (
+    <div style={{ width:'100%', height, background:'#0a0c12', border:`1px solid ${BORDER}`, borderRadius: 3, overflow:'hidden', position:'relative' }}>
+      <div style={{
+        width:`${pct}%`, height:'100%',
+        background: `linear-gradient(90deg, ${color} 0%, ${color}cc 100%)`,
+        transition:'width 260ms cubic-bezier(.2,.8,.2,1)',
+        boxShadow: glow && pct > 0 ? `0 0 8px ${color}` : 'none',
+      }}/>
+    </div>
+  );
+}
+
+function StatRow({ k, v, compact }) {
+  const color = v >= 70 ? GOLD : v >= 50 ? ACCENT : v >= 30 ? '#94a3b8' : MUTED;
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap: 6, fontSize: compact ? 13 : 15 }}>
+      <span style={{ width: 16, textAlign:'center' }}>{STAT_ICONS[k]}</span>
+      <span style={{ width: 60, color: MUTED, textTransform:'uppercase', fontSize: 11, letterSpacing: 1 }}>{k}</span>
+      <div style={{ flex:1 }}>
+        <ProgressBar value={v} max={100} color={color} height={5} />
+      </div>
+      <span style={{ width: 26, textAlign:'right', color: TEXT, fontVariantNumeric:'tabular-nums' }}>{v}</span>
+    </div>
+  );
+}
+
+function RarityBadge({ rarity }) {
+  const r = RARITY[rarity];
+  return <span style={{
+    display:'inline-block', padding:'1px 6px',
+    fontFamily:'"Press Start 2P", monospace', fontSize: 7,
+    letterSpacing: 1, color: r.color, border:`1px solid ${r.color}`,
+    borderRadius: 2, background:'rgba(0,0,0,0.3)',
+  }}>{r.label}</span>;
+}
+
+function AgentCard({ agent, selected, assignedTo, onClick, small = false }) {
+  const r = RARITY[agent.rarity];
+  const anim = r.glow ? `${r.glow} 2.4s ease-in-out infinite` : 'none';
+  const w = small ? 128 : 150;
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        width: w, minWidth: w,
+        background: `linear-gradient(180deg, ${SURFACE_2} 0%, ${SURFACE} 100%)`,
+        border: `2px solid ${selected ? '#fff' : r.color}`,
+        borderRadius: 6,
+        padding: 8,
+        cursor: onClick ? 'pointer' : 'default',
+        position:'relative',
+        animation: anim,
+        boxShadow: selected ? '0 0 0 3px rgba(255,255,255,0.25)' : 'none',
+        transition:'box-shadow 120ms ease, border-color 120ms ease, transform 120ms ease',
+      }}
+    >
+      <div style={{ display:'flex', alignItems:'center', gap: 6, marginBottom: 6 }}>
+        <Avatar seed={agent.avatar} size={32} />
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{
+            fontSize: 13, color: TEXT, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
+            lineHeight: 1,
+          }}>{agent.name}</div>
+          <div style={{ marginTop: 3, display:'flex', alignItems:'center', gap: 4 }}>
+            <RarityBadge rarity={agent.rarity} />
+            <span style={{ fontSize: 10, color: MUTED, textTransform:'uppercase', letterSpacing: 0.5 }}>L{agent.level}</span>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display:'flex', flexDirection:'column', gap: 2 }}>
+        {STAT_ORDER.map(s => (
+          <StatRow key={s} k={s} v={agent.stats[s]} compact />
+        ))}
+      </div>
+
+      <div style={{
+        marginTop: 6, textAlign:'center',
+        fontSize: 10, color: r.color, textTransform:'uppercase', letterSpacing: 1,
+        border:`1px dashed ${r.color}`, borderRadius: 3, padding:'2px 4px',
+      }}>{agent.trait}</div>
+
+      {assignedTo && (
+        <div style={{
+          position:'absolute', top:-6, right:-6,
+          background: SUCCESS, color:'#062', fontSize: 9,
+          fontFamily:'"Press Start 2P", monospace',
+          padding:'3px 6px', borderRadius: 3, letterSpacing: 1,
+        }}>ON {assignedTo}</div>
+      )}
+    </div>
+  );
+}
+
+// ── HUD ────────────────────────────────────────────────────────────
+function Hud({ money, reputation, day, onNextDay, disabled, agentCount, hudRefs }) {
+  return (
+    <div style={{
+      display:'flex', gap: 6, padding:'10px 12px',
+      background: SURFACE, borderBottom:`1px solid ${BORDER}`,
+      position:'sticky', top: 0, zIndex: 5,
+    }}>
+      <HudPill label="$"    value={'$' + money.toLocaleString()} color={GOLD} pillRef={hudRefs?.money}/>
+      <HudPill label="REP"  value={reputation} color={ACCENT} pillRef={hudRefs?.rep}/>
+      <HudPill label="DAY"  value={day} color={TEXT}/>
+      <HudPill label="AGT"  value={agentCount} color={'#a855f7'}/>
+      <button
+        onClick={onNextDay}
+        disabled={disabled}
+        style={{
+          marginLeft:'auto',
+          background: disabled ? '#223' : 'linear-gradient(180deg, #22d3ee 0%, #0891b2 100%)',
+          border:`2px solid ${disabled ? '#334' : '#0e7490'}`,
+          color: disabled ? MUTED : '#042',
+          padding:'6px 10px',
+          fontFamily:'"Press Start 2P", monospace',
+          fontSize: 9, letterSpacing: 1,
+          borderRadius: 4,
+          cursor: disabled ? 'default' : 'pointer',
+          textTransform:'uppercase',
+          boxShadow: disabled ? 'none' : '0 0 10px rgba(34,211,238,0.35)',
+        }}>Next Day ▶</button>
+    </div>
+  );
+}
+
+function HudPill({ label, value, color, pillRef }) {
+  return (
+    <div ref={pillRef} style={{
+      background: SURFACE_2, border:`1px solid ${BORDER}`,
+      borderRadius: 4, padding:'2px 8px', display:'flex', alignItems:'center', gap: 6,
+      fontSize: 14,
+    }}>
+      <span style={{
+        fontFamily:'"Press Start 2P", monospace', fontSize: 8, color, letterSpacing: 1,
+      }}>{label}</span>
+      <span style={{ color: TEXT, fontVariantNumeric:'tabular-nums' }}>{value}</span>
+    </div>
+  );
+}
+
+// ── section shell ──────────────────────────────────────────────────
+function Section({ title, right, children, sectionRef }) {
+  return (
+    <div ref={sectionRef} style={{
+      background: SURFACE, border:`1px solid ${BORDER}`, borderRadius: 6,
+      padding: 10, marginBottom: 10,
+    }}>
+      <div style={{ display:'flex', alignItems:'center', marginBottom: 8 }}>
+        <div className="ps2p" style={{ fontSize: 9, color: ACCENT, letterSpacing: 2 }}>{title}</div>
+        <div style={{ flex:1 }}/>
+        {right}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ── project panel ──────────────────────────────────────────────────
+function ProjectPanel({ project, agents, selectedAgentId, onAssign, onShip, panelRef }) {
+  const allDone = project.tasks.every(t => t.progress >= t.need);
+  return (
+    <Section sectionRef={panelRef} title="ACTIVE PROJECT" right={
+      <div style={{ fontSize: 11, color: MUTED }}>Day {project.daysSpent} · {project.scope.toUpperCase()}</div>
+    }>
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ fontSize: 17, color: TEXT }}>{project.title}</div>
+        <div style={{ fontSize: 12, color: MUTED }}>Client: {project.client} · Pays ${project.pay.toLocaleString()}</div>
+        <div style={{ fontSize: 13, color: '#b8c1d1', marginTop: 4, fontStyle:'italic' }}>"{project.desc}"</div>
+      </div>
+
+      {project.twists.length > 0 && (
+        <div style={{ display:'flex', gap: 4, flexWrap:'wrap', marginBottom: 8 }}>
+          {project.twists.map(t => (
+            <div key={t.key} style={{
+              background:'#2a1a3a', border:`1px solid #a855f7`, borderRadius: 3,
+              padding:'3px 6px', fontSize: 11,
+            }} title={t.desc}>
+              <span style={{ fontFamily:'"Press Start 2P", monospace', fontSize: 7, color:'#a855f7', letterSpacing: 1, marginRight: 4 }}>TWIST</span>
+              {t.title}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display:'flex', flexDirection:'column', gap: 6 }}>
+        {project.tasks.map(t => {
+          const ag = project.assignments[t.key] ? agents.find(a => a.id === project.assignments[t.key]) : null;
+          const done = t.progress >= t.need;
+          return (
+            <div key={t.key}
+              onClick={() => { if (!done) { sfx.click(); onAssign(t.key); } }}
+              style={{
+                background: SURFACE_2, border:`1px solid ${done ? SUCCESS : (selectedAgentId ? ACCENT : BORDER)}`,
+                borderRadius: 4, padding: 8, cursor: done ? 'default' : 'pointer',
+                opacity: done ? 0.8 : 1,
+                transition:'border-color 160ms ease',
+              }}>
+              <div style={{ display:'flex', alignItems:'center', gap: 6 }}>
+                <span style={{ fontSize: 16 }}>{STAT_ICONS[TASK_STAT[t.key]]}</span>
+                <span className="ps2p" style={{ fontSize: 9, color: done ? SUCCESS : TEXT, letterSpacing: 1 }}>
+                  {t.label.toUpperCase()}{done ? ' ✓' : ''}
+                </span>
+                <span style={{ flex:1 }}/>
+                {ag ? (
+                  <span style={{ fontSize: 12, color: ACCENT }}>→ {ag.name.split(' ').slice(-1)[0]}</span>
+                ) : (
+                  !done && <span style={{ fontSize: 11, color: MUTED }}>tap to assign</span>
+                )}
+              </div>
+              <div style={{ marginTop: 6 }}>
+                <ProgressBar value={t.progress} max={t.need} color={done ? SUCCESS : ACCENT} height={7} glow/>
+              </div>
+              <div style={{ marginTop: 3, fontSize: 11, color: MUTED, textAlign:'right', fontVariantNumeric:'tabular-nums' }}>
+                {Math.floor(t.progress)} / {t.need}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {allDone && !project.shipped && (
+        <button onClick={() => { sfx.coin(); onShip(); }} style={{
+          width:'100%', marginTop: 10,
+          background:'linear-gradient(180deg, #fbbf24 0%, #b45309 100%)',
+          border:'2px solid #92400e', color:'#211',
+          padding:'10px 12px', fontFamily:'"Press Start 2P", monospace',
+          fontSize: 10, letterSpacing: 2,
+          borderRadius: 4, cursor:'pointer',
+          animation:'pulseRing 1.6s ease-out infinite',
+        }}>★ SHIP IT ★</button>
+      )}
+    </Section>
+  );
+}
+
+// ── roster strip ───────────────────────────────────────────────────
+function RosterStrip({ agents, selectedAgentId, onSelect, onShowRoster, currentProject }) {
+  return (
+    <Section title="YOUR ROSTER" right={
+      <button onClick={onShowRoster} style={miniBtn}>All ({agents.length})</button>
+    }>
+      <div style={{
+        display:'flex', gap: 8, overflowX:'auto', paddingBottom: 4,
+      }}>
+        {agents.map(a => {
+          let assignedTo = null;
+          if (currentProject) {
+            for (const tk of Object.keys(currentProject.assignments)) {
+              if (currentProject.assignments[tk] === a.id) { assignedTo = tk.toUpperCase().slice(0,4); break; }
+            }
+          }
+          return (
+            <AgentCard
+              key={a.id}
+              agent={a}
+              selected={selectedAgentId === a.id}
+              assignedTo={assignedTo}
+              onClick={() => { sfx.click(); onSelect(a.id); }}
+              small
+            />
+          );
+        })}
+      </div>
+      <div style={{ marginTop: 6, fontSize: 11, color: MUTED }}>
+        {selectedAgentId
+          ? 'Agent selected — tap a task above to assign.'
+          : 'Tap a card to select an agent.'}
+      </div>
+    </Section>
+  );
+}
+
+// ── shop ───────────────────────────────────────────────────────────
+const miniBtn = {
+  background: SURFACE_2, border:`1px solid ${BORDER}`, color: TEXT,
+  padding:'4px 8px', borderRadius: 3, cursor:'pointer',
+  fontFamily:'"Press Start 2P", monospace', fontSize: 8, letterSpacing: 1,
+};
+const primaryBtn = {
+  background:'linear-gradient(180deg, #22d3ee 0%, #0891b2 100%)',
+  border:'2px solid #0e7490', color:'#042',
+  padding:'6px 10px', borderRadius: 3, cursor:'pointer',
+  fontFamily:'"Press Start 2P", monospace', fontSize: 9, letterSpacing: 1,
+};
+const dangerBtn = {
+  background:'#2a0a0a', border:`1px solid ${DANGER}`, color: DANGER,
+  padding:'4px 8px', borderRadius: 3, cursor:'pointer',
+  fontFamily:'"Press Start 2P", monospace', fontSize: 8, letterSpacing: 1,
+};
+
+function ShopPanel({ money, hireOffers, onHire, infra, onBuyInfra, agents, onTrain, onReroll, canReroll, shopRef }) {
+  return (
+    <Section sectionRef={shopRef} title="SHOP" right={
+      <button onClick={() => { if (canReroll) { sfx.click(); onReroll(); } }} disabled={!canReroll} style={{ ...miniBtn, opacity: canReroll ? 1 : 0.5, cursor: canReroll ? 'pointer' : 'default' }}>
+        Reroll $200
+      </button>
+    }>
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 12, color: MUTED, textTransform:'uppercase', letterSpacing: 2, marginBottom: 6 }}>HIRE AGENT</div>
+        <div style={{ display:'flex', gap: 8, overflowX:'auto' }}>
+          {hireOffers.map((offer, idx) => {
+            const cost = hireCost(offer);
+            const canAfford = money >= cost;
+            const previewAgent = {
+              name: offer.name, rarity: offer.rarity, trait: offer.trait,
+              stats: offer.base, level: 1, avatar: avatarSeed(offer.name), tier: offer.tier,
+            };
+            return (
+              <div key={idx} style={{ display:'flex', flexDirection:'column', alignItems:'stretch', gap: 6 }}>
+                <AgentCard agent={previewAgent} small />
+                <button
+                  onClick={() => { if (canAfford) { sfx.coin(); onHire(offer, idx); } }}
+                  disabled={!canAfford}
+                  style={{
+                    ...primaryBtn,
+                    background: canAfford ? primaryBtn.background : '#223',
+                    borderColor: canAfford ? '#0e7490' : '#334',
+                    color: canAfford ? '#042' : MUTED,
+                    cursor: canAfford ? 'pointer' : 'default',
+                    fontSize: 8,
+                  }}>
+                  HIRE ${cost}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 12, color: MUTED, textTransform:'uppercase', letterSpacing: 2, marginBottom: 6 }}>INFRASTRUCTURE</div>
+        <div style={{ display:'flex', flexDirection:'column', gap: 6 }}>
+          {infra.map(i => {
+            const owned = i.owned;
+            const canAfford = money >= i.cost;
+            return (
+              <div key={i.key} style={{
+                background: SURFACE_2, border:`1px solid ${owned ? SUCCESS : BORDER}`,
+                borderRadius: 4, padding: 8, display:'flex', alignItems:'center', gap: 8,
+              }}>
+                <span style={{ fontSize: 20 }}>{i.emoji}</span>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize: 14, color: TEXT }}>{i.name}{owned && ' ✓'}</div>
+                  <div style={{ fontSize: 11, color: MUTED }}>{i.effect}</div>
+                </div>
+                {!owned && (
+                  <button
+                    onClick={() => { if (canAfford) { sfx.coin(); onBuyInfra(i.key); } }}
+                    disabled={!canAfford}
+                    style={{
+                      ...primaryBtn,
+                      background: canAfford ? primaryBtn.background : '#223',
+                      borderColor: canAfford ? '#0e7490' : '#334',
+                      color: canAfford ? '#042' : MUTED,
+                      cursor: canAfford ? 'pointer' : 'default',
+                      fontSize: 8,
+                    }}>
+                    ${i.cost}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 4 }}>
+        <div style={{ fontSize: 12, color: MUTED, textTransform:'uppercase', letterSpacing: 2, marginBottom: 6 }}>TRAIN AGENT</div>
+        <TrainPanel agents={agents} money={money} onTrain={onTrain}/>
+      </div>
+
+      <div style={{ marginTop: 8, textAlign:'center', fontSize: 10, color: MUTED, letterSpacing: 1 }}>
+        [ RESEARCH TREE — coming soon ]
+      </div>
+    </Section>
+  );
+}
+
+function TrainPanel({ agents, money, onTrain }) {
+  const [agentId, setAgentId] = React.useState(agents[0]?.id || null);
+  const [stat, setStat]       = React.useState('coding');
+  React.useEffect(() => {
+    if (!agentId && agents[0]) setAgentId(agents[0].id);
+  }, [agents]);
+  const trainCost = 400;
+  const agent = agents.find(a => a.id === agentId);
+  const canAfford = money >= trainCost && !!agent;
+  return (
+    <div style={{
+      background: SURFACE_2, border:`1px solid ${BORDER}`,
+      borderRadius: 4, padding: 8, display:'flex', flexDirection:'column', gap: 6,
+    }}>
+      <div style={{ display:'flex', gap: 6, flexWrap:'wrap' }}>
+        <select value={agentId || ''} onChange={e => setAgentId(e.target.value)}
+          style={{ flex:2, minWidth: 120, background:'#0a0c12', color: TEXT, border:`1px solid ${BORDER}`, padding:'4px 6px', fontFamily:'inherit', fontSize: 14 }}>
+          {agents.map(a => <option key={a.id} value={a.id}>{a.name} (L{a.level})</option>)}
+        </select>
+        <select value={stat} onChange={e => setStat(e.target.value)}
+          style={{ flex:1, minWidth: 90, background:'#0a0c12', color: TEXT, border:`1px solid ${BORDER}`, padding:'4px 6px', fontFamily:'inherit', fontSize: 14, textTransform:'capitalize' }}>
+          {STAT_ORDER.map(s => <option key={s} value={s}>{STAT_ICONS[s]} {s}</option>)}
+        </select>
+      </div>
+      <button
+        onClick={() => { if (canAfford) { sfx.pop(); onTrain(agent.id, stat, trainCost); } }}
+        disabled={!canAfford}
+        style={{
+          ...primaryBtn,
+          background: canAfford ? 'linear-gradient(180deg, #a855f7 0%, #6b21a8 100%)' : '#223',
+          borderColor: canAfford ? '#6b21a8' : '#334',
+          color: canAfford ? '#fff' : MUTED,
+          cursor: canAfford ? 'pointer' : 'default',
+        }}>
+        + TRAIN ${trainCost}
+      </button>
+      <div style={{ fontSize: 11, color: MUTED }}>
+        +4 to chosen stat. Compute-intensive. XP still grows from working.
+      </div>
+    </div>
+  );
+}
+
+// ── event ticker ───────────────────────────────────────────────────
+function EventTicker({ activeEvents, log }) {
+  return (
+    <Section title="INDUSTRY TICKER">
+      {activeEvents.length > 0 ? (
+        <div style={{ display:'flex', flexDirection:'column', gap: 4 }}>
+          {activeEvents.map(e => (
+            <div key={e.id} style={{
+              background:'#1a1022', border:`1px solid #a855f7`, borderRadius: 3,
+              padding:'4px 8px', display:'flex', gap: 6, alignItems:'center',
+            }}>
+              <span style={{ fontSize: 18 }}>{e.emoji}</span>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize: 13 }}>{e.title}</div>
+                <div style={{ fontSize: 11, color: MUTED }}>{e.desc}</div>
+              </div>
+              <div style={{ fontSize: 10, color:'#a855f7', letterSpacing: 1 }}>
+                {e.daysLeft}d
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ fontSize: 12, color: MUTED }}>No industry events right now. Calm before the storm.</div>
+      )}
+      {log.length > 0 && (
+        <div style={{ marginTop: 8, fontSize: 11, color: MUTED, maxHeight: 70, overflowY:'auto' }}>
+          {log.slice().reverse().map((l, i) => (
+            <div key={i} style={{ opacity: 1 - i * 0.15 }}>Day {l.day}: {l.text}</div>
+          ))}
+        </div>
+      )}
+    </Section>
+  );
+}
+
+// ── modals ─────────────────────────────────────────────────────────
+function Modal({ children, onClose, wide }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position:'fixed', inset: 0, background:'rgba(0,0,0,0.75)',
+        display:'flex', alignItems:'flex-start', justifyContent:'center',
+        padding:'40px 12px', zIndex: 30,
+        overflowY:'auto',
+      }}>
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width:'min(420px, 100%)', maxWidth: wide ? 540 : 420,
+          background: SURFACE, border:`2px solid ${BORDER}`,
+          borderRadius: 8, padding: 12, color: TEXT,
+          boxShadow:'0 20px 60px rgba(0,0,0,0.6)',
+        }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function RosterModal({ agents, onClose, onDetail }) {
+  return (
+    <Modal onClose={onClose}>
+      <div style={{ display:'flex', alignItems:'center', marginBottom: 10 }}>
+        <div className="ps2p" style={{ fontSize: 11, color: ACCENT, letterSpacing: 2 }}>MY ROSTER</div>
+        <div style={{ flex:1 }}/>
+        <button onClick={onClose} style={miniBtn}>CLOSE</button>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+        {agents.map(a => (
+          <AgentCard key={a.id} agent={a} onClick={() => onDetail(a)} small />
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
+function AgentDetailModal({ agent, onClose }) {
+  const r = RARITY[agent.rarity];
+  return (
+    <Modal onClose={onClose}>
+      <div style={{ display:'flex', alignItems:'center', marginBottom: 10 }}>
+        <div className="ps2p" style={{ fontSize: 11, color: r.color, letterSpacing: 2 }}>AGENT</div>
+        <div style={{ flex:1 }}/>
+        <button onClick={onClose} style={miniBtn}>CLOSE</button>
+      </div>
+      <div style={{ display:'flex', gap: 12, alignItems:'center', marginBottom: 12 }}>
+        <div style={{ transform:'scale(1.2)', width: 60, height: 70, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          {agent.sprite ? <PixelChar sprite={agent.sprite} mood="idle"/> : <Avatar seed={agent.avatar} size={68}/>}
+        </div>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize: 19, color: TEXT }}>{agent.name}</div>
+          <div style={{ marginTop: 4, display:'flex', gap: 6, alignItems:'center' }}>
+            <RarityBadge rarity={agent.rarity}/>
+            <span style={{ fontSize: 11, color: MUTED, textTransform:'uppercase', letterSpacing: 1 }}>Lvl {agent.level}</span>
+          </div>
+          <div style={{ marginTop: 6, fontSize: 13, color: r.color, textTransform:'uppercase', letterSpacing: 1 }}>
+            Trait: {agent.trait}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ fontSize: 13, color:'#b8c1d1', fontStyle:'italic', marginBottom: 10 }}>"{agent.flavor}"</div>
+
+      <div style={{ display:'flex', flexDirection:'column', gap: 4 }}>
+        {STAT_ORDER.map(s => <StatRow key={s} k={s} v={agent.stats[s]}/>)}
+      </div>
+
+      <div style={{ marginTop: 10, fontSize: 11, color: MUTED }}>
+        XP: {STAT_ORDER.map(s => `${STAT_ICONS[s]} ${Math.floor(agent.xp[s] || 0)}`).join('  ')}
+      </div>
+    </Modal>
+  );
+}
+
+function ProjectPickerModal({ offers, reputation, onPick }) {
+  return (
+    <Modal onClose={() => {}}>
+      <div className="ps2p" style={{ fontSize: 10, color: ACCENT, letterSpacing: 2, marginBottom: 10 }}>
+        NEW BRIEFS
+      </div>
+      <div style={{ fontSize: 12, color: MUTED, marginBottom: 10 }}>
+        Reputation {reputation} — choose your next project:
+      </div>
+      <div style={{ display:'flex', flexDirection:'column', gap: 8 }}>
+        {offers.map((o, i) => (
+          <div key={i}
+            onClick={() => { sfx.click(); onPick(o); }}
+            style={{
+              background: SURFACE_2,
+              border: `1px solid ${o.twists.length > 0 ? '#a855f7' : BORDER}`,
+              borderRadius: 4, padding: 10, cursor:'pointer',
+              transition:'border-color 120ms ease',
+            }}>
+            <div style={{ display:'flex', alignItems:'center', gap: 6 }}>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize: 15, color: TEXT }}>{o.title}</div>
+                <div style={{ fontSize: 11, color: MUTED }}>{o.client} · {o.scope.toUpperCase()}</div>
+              </div>
+              <div style={{ textAlign:'right' }}>
+                <div style={{ fontSize: 14, color: GOLD }}>${o.pay.toLocaleString()}</div>
+                <div style={{ fontSize: 11, color: ACCENT }}>+{o.repBase} rep</div>
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color:'#b8c1d1', fontStyle:'italic', marginTop: 4 }}>"{o.desc}"</div>
+            {o.twists.length > 0 && (
+              <div style={{ display:'flex', gap: 4, flexWrap:'wrap', marginTop: 6 }}>
+                {o.twists.map(t => (
+                  <div key={t.key} style={{
+                    background:'#2a1a3a', border:`1px solid #a855f7`, borderRadius: 3,
+                    padding:'2px 6px', fontSize: 11,
+                  }}>
+                    <span style={{ fontFamily:'"Press Start 2P", monospace', fontSize: 7, color:'#a855f7', letterSpacing: 1, marginRight: 4 }}>TWIST</span>
+                    {t.title}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
+function EventPopover({ event, onDismiss }) {
+  const borderColor = event.valence === 'bad' ? DANGER : event.valence === 'good' ? SUCCESS : '#a855f7';
+  const bg = event.valence === 'bad'
+    ? 'linear-gradient(180deg, #3a1a1a 0%, #220a0a 100%)'
+    : event.valence === 'good'
+    ? 'linear-gradient(180deg, #1a3a22 0%, #0a220a 100%)'
+    : 'linear-gradient(180deg, #2a1a3a 0%, #1a0a22 100%)';
+  return (
+    <div onClick={() => { sfx.click(); onDismiss(); }} style={{
+      position:'fixed', inset: 0, background:'rgba(0,0,0,0.55)', zIndex: 40,
+    }}>
+      <div style={{
+        position:'absolute', top:'50%', left:'50%',
+        width: 280, padding: 14,
+        background: bg,
+        border:`3px solid ${borderColor}`, borderRadius: 8,
+        animation:'eventSlam 620ms cubic-bezier(.2,1.4,.5,1) forwards',
+        boxShadow: `0 0 40px ${borderColor}aa`,
+      }}>
+        <div className="ps2p" style={{ fontSize: 9, color: borderColor, letterSpacing: 2, marginBottom: 6 }}>INDUSTRY EVENT</div>
+        <div style={{ fontSize: 48, textAlign:'center' }}>{event.emoji}</div>
+        <div style={{ textAlign:'center', fontSize: 18, marginTop: 6 }}>{event.title}</div>
+        <div style={{ textAlign:'center', fontSize: 13, color:'#d9c8ea', marginTop: 6 }}>{event.desc}</div>
+        <div style={{ textAlign:'center', fontSize: 11, color: MUTED, marginTop: 10, letterSpacing: 1 }}>tap to continue</div>
+      </div>
+    </div>
+  );
+}
+
+// ═══ MAIN APP ══════════════════════════════════════════════════════
+const STARTER_INFRA = [
+  { key:'desktop',    name:'Upgrade Desktop',    emoji:'🖥️', cost: 800,  effect:'+8% progress for all tasks. +1 desk.',  owned:false, mul:1.08, deskBonus: 1 },
+  { key:'gpu',        name:'Buy GPU',            emoji:'🖲️', cost: 2200, effect:'+18% progress + cheaper training.',        owned:false, mul:1.18, trainDiscount:0.7 },
+  { key:'datacenter', name:'Datacenter Wing',    emoji:'🏢', cost: 6500, effect:'+35% progress. Unlocks flagship slot. +2 desks.', owned:false, mul:1.35, deskBonus: 2 },
+];
+
+function rollHireOffers(reputation) {
+  const out = [];
+  for (let i = 0; i < 3; i++) {
+    const roll = Math.random();
+    let pool;
+    if (roll < 0.04 && reputation >= 20) pool = AGENT_TEMPLATES.filter(t => t.rarity === 'legendary');
+    else if (roll < 0.14) pool = AGENT_TEMPLATES.filter(t => t.rarity === 'epic');
+    else if (roll < 0.45) pool = AGENT_TEMPLATES.filter(t => t.rarity === 'rare');
+    else pool = AGENT_TEMPLATES.filter(t => t.rarity === 'common');
+    if (pool.length === 0) pool = AGENT_TEMPLATES.filter(t => t.rarity === 'common');
+    out.push(pick(pool));
+  }
+  return out;
+}
+
+function rollProjectOffers(reputation) {
+  const offers = [];
+  const allowed = PROJECT_POOL.filter(p => {
+    if (p.scope === 'flagship') return reputation >= 15;
+    if (p.scope === 'medium')   return reputation >= 4;
+    return true;
+  });
+  const shuffled = allowed.slice().sort(() => Math.random() - 0.5);
+  for (const tpl of shuffled.slice(0, 3)) {
+    const attachTwists = tpl.scope === 'flagship' ? 2 : (Math.random() < 0.35 ? 1 : 0);
+    offers.push(makeProject(tpl, attachTwists));
+  }
+  return offers;
+}
+
+function App() {
+  // refs for popup anchoring
+  const hudMoneyRef = React.useRef(null);
+  const hudRepRef   = React.useRef(null);
+  const projectPanelRef = React.useRef(null);
+  const shopRef = React.useRef(null);
+
+  // popups state
+  const [popups, setPopups] = React.useState([]);
+  const popupIdRef = React.useRef(1);
+  const spawnPopup = React.useCallback((text, color, x, y, opts = {}) => {
+    const id = popupIdRef.current++;
+    setPopups(prev => [...prev, { id, text, color, x, y, ...opts }]);
+    setTimeout(() => {
+      setPopups(prev => prev.filter(p => p.id !== id));
+    }, opts.dur || 1200);
+  }, []);
+  const spawnAtRef = React.useCallback((ref, text, color, opts = {}) => {
+    if (!ref || !ref.current) {
+      spawnPopup(text, color, window.innerWidth / 2, 120, opts);
+      return;
+    }
+    const r = ref.current.getBoundingClientRect();
+    spawnPopup(text, color, r.left + r.width / 2, r.top + r.height / 2, opts);
+  }, [spawnPopup]);
+
+  // day transition
+  const [dayTransition, setDayTransition] = React.useState(null);
+  // event reaction (screen shake + agents look up)
+  const [eventReacting, setEventReacting] = React.useState(false);
+  // shipping cheer
+  const [shippingCheer, setShippingCheer] = React.useState(false);
+  // hire walk-in
+  const [hireArrival, setHireArrival] = React.useState(null);
+  // legendary pull overlay
+  const [legendaryPull, setLegendaryPull] = React.useState(null);
+
+  const makeInitial = () => {
+    const starter = makeAgentFromTemplate(AGENT_TEMPLATES[0]);
+    const firstProject = makeProject(PROJECT_POOL[0], 0);
+    return {
+      money: 2000,
+      reputation: 0,
+      day: 1,
+      agents: [starter],
+      project: firstProject,
+      infra: STARTER_INFRA.map(i => ({ ...i })),
+      hireOffers: rollHireOffers(0),
+      hireOffersDay: 1,
+      activeEvents: [],
+      log: [{ day: 1, text: 'Studio founded. Welcome aboard.' }],
+      daysSinceLastEvent: 0,
+      pendingReview: null,
+      pendingOffers: null,
+      eventPopover: null,
+      toast: null,
+      selectedAgentId: starter.id,
+      rosterOpen: false,
+      detailAgent: null,
+    };
+  };
+
+  const [s, setS] = React.useState(makeInitial);
+
+  // initial unlock sfx prime (user gesture required on some browsers)
+  React.useEffect(() => {
+    const unlock = () => { getAudio(); document.removeEventListener('pointerdown', unlock); };
+    document.addEventListener('pointerdown', unlock);
+    return () => document.removeEventListener('pointerdown', unlock);
+  }, []);
+
+  // ── load / save ──
+  React.useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.agents && parsed.project) {
+          // re-hydrate sprite if missing (v0 saves)
+          parsed.agents = parsed.agents.map(a => ({
+            ...a,
+            sprite: a.sprite || spriteSeed(a.name, a.rarity),
+            mood: a.mood || 'idle',
+            stamina: a.stamina == null ? 100 : a.stamina,
+          }));
+          setS(prev => ({ ...prev, ...parsed, toast: null, eventPopover: null }));
+        }
+      }
+    } catch (_) {}
+  }, []);
+
+  React.useEffect(() => {
+    try {
+      const snapshot = {
+        money: s.money, reputation: s.reputation, day: s.day,
+        agents: s.agents, project: s.project, infra: s.infra,
+        hireOffers: s.hireOffers, hireOffersDay: s.hireOffersDay,
+        activeEvents: s.activeEvents, log: s.log,
+        daysSinceLastEvent: s.daysSinceLastEvent,
+        selectedAgentId: s.selectedAgentId,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+    } catch (_) {}
+  }, [s.money, s.reputation, s.day, s.agents, s.project, s.infra, s.hireOffers, s.activeEvents, s.log]);
+
+  const pushToast = (text) => {
+    setS(prev => ({ ...prev, toast: text }));
+    setTimeout(() => setS(prev => (prev.toast === text ? { ...prev, toast: null } : prev)), 2400);
+  };
+
+  // compute deskCount based on infra
+  const deskCount = React.useMemo(() => {
+    let base = 3;
+    for (const i of s.infra) if (i.owned && i.deskBonus) base += i.deskBonus;
+    return Math.min(base, 5);
+  }, [s.infra]);
+
+  // ── next day ──
+  const onNextDay = () => {
+    if (s.pendingReview || s.pendingOffers || s.eventPopover) return;
+    sfx.dayChime();
+
+    // fire transition animation
+    const targetDay = s.day + 1;
+    setDayTransition({ active: true, newDay: targetDay });
+    setTimeout(() => setDayTransition(null), 650);
+
+    setS(prev => {
+      let { money, reputation, day, agents, project, infra, activeEvents, log, daysSinceLastEvent, hireOffers, hireOffersDay, selectedAgentId } = prev;
+
+      let globalMul = 1;
+      for (const e of activeEvents) if (e.mul) globalMul *= e.mul;
+      for (const i of infra) if (i.owned) globalMul *= i.mul;
+
+      const newAgents = agents.map(a => ({ ...a, stats: { ...a.stats }, xp: { ...a.xp } }));
+      const newTasks = project.tasks.map(t => ({ ...t }));
+
+      // track xp gain per agent for popups
+      const xpGains = {};
+
+      for (const t of newTasks) {
+        if (t.progress >= t.need) continue;
+        const agentId = project.assignments[t.key];
+        if (!agentId) continue;
+        const agent = newAgents.find(a => a.id === agentId);
+        if (!agent) continue;
+        const statKey = TASK_STAT[t.key];
+        let delta = agent.stats[statKey] * 1.0 + agent.stats.speed * 0.3;
+
+        if (agent.trait === 'Speedy')        delta *= 1.15;
+        if (agent.trait === 'Perfectionist' && t.progress < t.need * 0.5) delta *= 0.9;
+        if (agent.trait === 'Perfectionist' && t.progress >= t.need * 0.5) delta *= 1.2;
+        if (agent.trait === 'Chaotic')       delta *= (0.7 + Math.random() * 0.6);
+        if (agent.trait === 'Designer'       && t.key === 'Design') delta *= 1.25;
+        if (agent.trait === 'Designer-leaning' && t.key === 'Design') delta *= 1.15;
+        if (agent.trait === 'Thorough'       && t.key === 'Brief')  delta *= 1.25;
+        if (agent.trait === 'Creative'       && t.key === 'Brief')  delta *= 1.1;
+        if (agent.trait === 'Pragmatic'      && t.key === 'Build')  delta *= 1.15;
+        if (agent.trait === 'Calm')          delta *= 1.05;
+        if (agent.trait === 'Team-Player' && (project.assignments.Brief && project.assignments.Design && project.assignments.Build)) delta *= 1.2;
+        if (agent.trait === 'Visionary')     delta *= 1.25;
+
+        delta *= globalMul;
+
+        for (const tw of project.twists) {
+          if (tw.mul) {
+            if (tw.mul.progress) delta *= tw.mul.progress;
+            if (tw.mul.design && t.key === 'Design') delta /= tw.mul.design;
+            if (tw.mul.coding && t.key === 'Build')  delta /= tw.mul.coding;
+          }
+        }
+
+        t.progress = Math.min(t.need, t.progress + delta);
+        agent.xp[statKey] = (agent.xp[statKey] || 0) + delta * 0.35;
+        agent.xp.speed    = (agent.xp.speed    || 0) + delta * 0.1;
+        xpGains[agent.id] = (xpGains[agent.id] || 0) + delta;
+
+        // stamina drain
+        agent.stamina = Math.max(0, (agent.stamina || 100) - 12);
+      }
+
+      // non-working agents recover stamina
+      for (const a of newAgents) {
+        const working = Object.values(project.assignments).includes(a.id);
+        if (!working) a.stamina = Math.min(100, (a.stamina || 100) + 18);
+      }
+
+      const leveled = [];
+      for (const a of newAgents) {
+        for (const stat of STAT_ORDER) {
+          const threshold = 40 + a.stats[stat] * 2;
+          if ((a.xp[stat] || 0) >= threshold) {
+            a.xp[stat] -= threshold;
+            a.stats[stat] = Math.min(100, a.stats[stat] + irand(1, 3));
+            leveled.push(`${a.name} +${stat}`);
+          }
+        }
+        const totalStats = STAT_ORDER.reduce((acc, k) => acc + a.stats[k], 0);
+        const newLevel = 1 + Math.floor((totalStats - 110) / 30);
+        if (newLevel > a.level) { a.level = newLevel; leveled.push(`${a.name} → Lvl ${newLevel}`); }
+      }
+
+      const newProject = { ...project, tasks: newTasks, daysSpent: project.daysSpent + 1 };
+
+      const tickedEvents = activeEvents
+        .map(e => ({ ...e, daysLeft: e.daysLeft - 1 }))
+        .filter(e => e.daysLeft > 0);
+
+      let newLog = log.slice();
+      if (leveled.length > 0) newLog.push({ day: day + 1, text: 'Progress: ' + leveled.slice(0, 2).join(', ') });
+
+      let newOffers = hireOffers;
+      let newOffersDay = hireOffersDay;
+      if (hireOffersDay !== day + 1) {
+        newOffers = rollHireOffers(reputation);
+        newOffersDay = day + 1;
+      }
+
+      let newEventPop = null;
+      let newDaysSinceEvent = daysSinceLastEvent + 1;
+      const shouldFire = newDaysSinceEvent >= 3 && (newDaysSinceEvent >= 5 || Math.random() < 0.35);
+      if (shouldFire) {
+        const tpl = pick(EVENT_POOL);
+        const instance = { ...tpl, id: nextId('evt'), daysLeft: tpl.days };
+        tickedEvents.push(instance);
+        newLog.push({ day: day + 1, text: `Event: ${tpl.title}` });
+        newDaysSinceEvent = 0;
+        newEventPop = instance;
+
+        if (tpl.repBonus) reputation += tpl.repBonus;
+      }
+
+      // fire XP popups (after setS, using timeout)
+      setTimeout(() => {
+        for (const [aid, dx] of Object.entries(xpGains)) {
+          if (dx > 0 && projectPanelRef.current) {
+            const r = projectPanelRef.current.getBoundingClientRect();
+            const x = r.left + rand(r.width * 0.15, r.width * 0.85);
+            const y = r.top + rand(10, 40);
+            spawnPopup(`+${Math.round(dx)}xp`, '#fff', x, y, { size: 9, dur: 900 });
+          }
+        }
+      }, 50);
+
+      // event reaction: if an event fired, surprise the office
+      if (newEventPop) {
+        setTimeout(() => {
+          setEventReacting(true);
+          sfx.event();
+          setTimeout(() => setEventReacting(false), 800);
+        }, 400);
+      }
+
+      let toast = leveled.length > 0 ? leveled[0] : null;
+
+      return {
+        ...prev,
+        day: day + 1,
+        agents: newAgents,
+        project: newProject,
+        activeEvents: tickedEvents,
+        log: newLog.slice(-30),
+        daysSinceLastEvent: newDaysSinceEvent,
+        hireOffers: newOffers,
+        hireOffersDay: newOffersDay,
+        reputation,
+        eventPopover: newEventPop,
+        toast,
+      };
+    });
+
+    setTimeout(() => setS(prev => prev.toast && !prev.eventPopover ? { ...prev, toast: null } : prev), 2000);
+  };
+
+  // ── assign agent to task ──
+  const onAssignTask = (taskKey) => {
+    if (!s.selectedAgentId) { pushToast('Select an agent first.'); return; }
+    setS(prev => {
+      const proj = prev.project;
+      const newAssign = { ...proj.assignments };
+      for (const k of Object.keys(newAssign)) {
+        if (newAssign[k] === prev.selectedAgentId) newAssign[k] = null;
+      }
+      newAssign[taskKey] = prev.selectedAgentId;
+      return { ...prev, project: { ...proj, assignments: newAssign } };
+    });
+  };
+
+  // ── ship it ──
+  const onShip = () => {
+    setShippingCheer(true);
+    setTimeout(() => setShippingCheer(false), 1400);
+
+    setS(prev => {
+      const p = prev.project;
+      let qualitySum = 0;
+      let qualityN = 0;
+      for (const t of p.tasks) {
+        const aid = p.assignments[t.key];
+        const agent = aid ? prev.agents.find(x => x.id === aid) : null;
+        if (agent) {
+          qualitySum += agent.stats[TASK_STAT[t.key]];
+          qualityN++;
+        }
+      }
+      const qualityAvg = qualityN > 0 ? qualitySum / qualityN : 10;
+      let score = Math.round((qualityAvg / 100) * 35 + irand(0, 5));
+      const expectedDays = p.scope === 'small' ? 8 : p.scope === 'medium' ? 14 : 22;
+      if (p.daysSpent < expectedDays) score += 1;
+      if (p.daysSpent > expectedDays * 1.5) score -= 2;
+      let payMul = 1, repMul = 1;
+      for (const tw of p.twists) {
+        if (tw.scoreDelta) score += tw.scoreDelta;
+        if (tw.mul && tw.mul.pay) payMul *= tw.mul.pay;
+        if (tw.repMul && score >= 30) repMul *= tw.repMul;
+      }
+      for (const e of prev.activeEvents) if (e.payBonus) payMul *= (1 + e.payBonus);
+
+      score = Math.max(1, Math.min(40, score));
+      const moneyGained = Math.round(p.pay * (0.4 + score / 40) * payMul);
+      const repGained   = Math.max(0, Math.round(p.repBase * (score / 30) * repMul));
+
+      const blurb =
+        score >= 36 ? 'A rare masterpiece. The press is foaming.' :
+        score >= 30 ? 'Seriously good. Word is spreading.' :
+        score >= 22 ? 'Solid. Players enjoyed it.' :
+        score >= 14 ? 'Mixed reviews. Some nice ideas buried in jank.' :
+                     'Rough. Back to the drawing board.';
+
+      const agentAwards = [];
+      const newAgents = prev.agents.map(a => {
+        const worked = Object.values(p.assignments).includes(a.id);
+        if (!worked) return a;
+        const statKey = pick(STAT_ORDER);
+        const bump = irand(1, 3);
+        agentAwards.push(`${a.name} +${bump} ${statKey}`);
+        return { ...a, stats: { ...a.stats, [statKey]: Math.min(100, a.stats[statKey] + bump) } };
+      });
+
+      const review = {
+        title: p.title,
+        score,
+        money: moneyGained,
+        rep: repGained,
+        days: p.daysSpent,
+        blurb,
+        agentAwards,
+      };
+      return {
+        ...prev,
+        agents: newAgents,
+        money: prev.money + moneyGained,
+        reputation: prev.reputation + repGained,
+        pendingReview: review,
+        project: { ...p, shipped: true },
+        log: [...prev.log, { day: prev.day, text: `Shipped "${p.title}" · ${score}/40 · +$${moneyGained}` }].slice(-30),
+      };
+    });
+  };
+
+  const onReviewContinue = () => {
+    setS(prev => {
+      // fire money + rep popups on close
+      setTimeout(() => {
+        if (prev.pendingReview) {
+          spawnAtRef(hudMoneyRef, `+$${prev.pendingReview.money.toLocaleString()}`, GOLD, { size: 13, dur: 1400 });
+          setTimeout(() => {
+            spawnAtRef(hudRepRef, `+${prev.pendingReview.rep} REP`, '#a855f7', { size: 11, dur: 1300 });
+          }, 200);
+        }
+      }, 10);
+      const offers = rollProjectOffers(prev.reputation);
+      return { ...prev, pendingReview: null, pendingOffers: offers };
+    });
+  };
+
+  const onPickProject = (proj) => {
+    setS(prev => ({
+      ...prev,
+      project: proj,
+      pendingOffers: null,
+      log: [...prev.log, { day: prev.day, text: `New project: ${proj.title}` }].slice(-30),
+    }));
+  };
+
+  // ── shop actions ──
+  const onHire = (template, idx) => {
+    const cost = hireCost(template);
+    setS(prev => {
+      if (prev.money < cost) return prev;
+      const newAgent = makeAgentFromTemplate(template);
+      const newOffers = prev.hireOffers.slice();
+      newOffers.splice(idx, 1);
+
+      // kick off walk-in animation
+      const slotIdx = Math.min(prev.agents.length, deskCount - 1);
+      setTimeout(() => {
+        setHireArrival({ agent: newAgent, slotIdx });
+        sfx.hire();
+        setTimeout(() => setHireArrival(null), 1500);
+      }, 10);
+
+      // legendary fanfare
+      if (newAgent.rarity === 'legendary') {
+        setTimeout(() => setLegendaryPull(newAgent), 100);
+      }
+
+      // $ popup
+      setTimeout(() => {
+        spawnAtRef(hudMoneyRef, `-$${cost}`, DANGER, { bad: true, size: 11 });
+      }, 20);
+
+      return {
+        ...prev,
+        money: prev.money - cost,
+        agents: [...prev.agents, newAgent],
+        hireOffers: newOffers,
+        log: [...prev.log, { day: prev.day, text: `Hired ${newAgent.name}` }].slice(-30),
+        toast: `Hired ${newAgent.name}!`,
+      };
+    });
+    setTimeout(() => setS(prev => prev.toast && prev.toast.startsWith('Hired ') ? { ...prev, toast: null } : prev), 2000);
+  };
+
+  const onReroll = () => {
+    setS(prev => {
+      if (prev.money < 200) return prev;
+      setTimeout(() => spawnAtRef(hudMoneyRef, '-$200', DANGER, { bad: true, size: 11 }), 10);
+      return { ...prev, money: prev.money - 200, hireOffers: rollHireOffers(prev.reputation) };
+    });
+  };
+
+  const onBuyInfra = (key) => {
+    setS(prev => {
+      const i = prev.infra.find(x => x.key === key);
+      if (!i || i.owned || prev.money < i.cost) return prev;
+      setTimeout(() => spawnAtRef(hudMoneyRef, `-$${i.cost}`, DANGER, { bad: true, size: 11 }), 10);
+      return {
+        ...prev,
+        money: prev.money - i.cost,
+        infra: prev.infra.map(x => x.key === key ? { ...x, owned: true } : x),
+        log: [...prev.log, { day: prev.day, text: `Bought: ${i.name}` }].slice(-30),
+        toast: `${i.name} online.`,
+      };
+    });
+    setTimeout(() => setS(prev => prev.toast && prev.toast.endsWith('online.') ? { ...prev, toast: null } : prev), 2000);
+  };
+
+  const onTrain = (agentId, stat, baseCost) => {
+    setS(prev => {
+      const gpu = prev.infra.find(i => i.key === 'gpu' && i.owned);
+      const cost = Math.round(baseCost * (gpu ? 0.7 : 1));
+      if (prev.money < cost) return prev;
+      const agents = prev.agents.map(a => a.id === agentId
+        ? { ...a, stats: { ...a.stats, [stat]: Math.min(100, a.stats[stat] + 4) } }
+        : a);
+      setTimeout(() => spawnAtRef(hudMoneyRef, `-$${cost}`, DANGER, { bad: true, size: 11 }), 10);
+      return {
+        ...prev,
+        money: prev.money - cost,
+        agents,
+        log: [...prev.log, { day: prev.day, text: `Trained ${stat} for ${agents.find(a => a.id === agentId)?.name}` }].slice(-30),
+        toast: `+4 ${stat} trained.`,
+      };
+    });
+    setTimeout(() => setS(prev => prev.toast && prev.toast.endsWith('trained.') ? { ...prev, toast: null } : prev), 2000);
+  };
+
+  const onReset = () => {
+    if (!confirm('Reset studio? All progress lost.')) return;
+    try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+    setS(makeInitial());
+  };
+
+  const canNextDay = !s.pendingReview && !s.pendingOffers && !s.eventPopover && !s.project.shipped;
+  const canReroll = s.money >= 200 && !s.pendingReview && !s.pendingOffers;
+
+  return (
+    <div style={{
+      width:'min(420px, 100vw)',
+      minHeight:'100vh',
+      background: BG,
+      color: TEXT,
+      display:'flex', flexDirection:'column',
+      paddingBottom:'max(16px, env(safe-area-inset-bottom))',
+      boxSizing:'border-box',
+      position:'relative',
+    }}>
+      <div style={{
+        padding:'14px 12px 6px', textAlign:'center',
+        borderBottom:`1px solid ${BORDER}`, background: SURFACE,
+      }}>
+        <div className="ps2p" style={{ fontSize: 12, color: GOLD, letterSpacing: 3 }}>AGENT DEV STORY</div>
+        <div style={{ fontSize: 11, color: MUTED, marginTop: 2, letterSpacing: 1 }}>
+          indie studio · AI agents · living office
+        </div>
+      </div>
+
+      <Hud
+        money={s.money}
+        reputation={s.reputation}
+        day={s.day}
+        onNextDay={onNextDay}
+        disabled={!canNextDay}
+        agentCount={s.agents.length}
+        hudRefs={{ money: hudMoneyRef, rep: hudRepRef }}
+      />
+
+      <div style={{ padding: 10, flex: 1 }}>
+        {/* OFFICE SCENE — the new hero */}
+        <OfficeScene
+          agents={s.agents}
+          project={s.project}
+          day={s.day}
+          activeEvents={s.activeEvents}
+          hiringArrival={hireArrival}
+          dayTransition={dayTransition}
+          eventReacting={eventReacting}
+          shippingCheer={shippingCheer}
+          deskCount={deskCount}
+          onDeskTap={(slotIdx) => {
+            const a = s.agents[slotIdx];
+            if (a) {
+              sfx.click();
+              setS(prev => ({ ...prev, selectedAgentId: prev.selectedAgentId === a.id ? null : a.id, detailAgent: null }));
+            }
+          }}
+        />
+
+        <ProjectPanel
+          panelRef={projectPanelRef}
+          project={s.project}
+          agents={s.agents}
+          selectedAgentId={s.selectedAgentId}
+          onAssign={onAssignTask}
+          onShip={onShip}
+        />
+
+        <RosterStrip
+          agents={s.agents}
+          selectedAgentId={s.selectedAgentId}
+          onSelect={(id) => setS(prev => ({ ...prev, selectedAgentId: prev.selectedAgentId === id ? null : id }))}
+          onShowRoster={() => setS(prev => ({ ...prev, rosterOpen: true }))}
+          currentProject={s.project}
+        />
+
+        <ShopPanel
+          shopRef={shopRef}
+          money={s.money}
+          hireOffers={s.hireOffers}
+          onHire={onHire}
+          infra={s.infra}
+          onBuyInfra={onBuyInfra}
+          agents={s.agents}
+          onTrain={onTrain}
+          onReroll={onReroll}
+          canReroll={canReroll}
+        />
+
+        <EventTicker activeEvents={s.activeEvents} log={s.log}/>
+
+        <div style={{ textAlign:'center', marginTop: 8 }}>
+          <button onClick={onReset} style={dangerBtn}>RESET STUDIO</button>
+        </div>
+
+        <div style={{ textAlign:'center', fontSize: 11, color: MUTED, marginTop: 8, letterSpacing: 1 }}>
+          prototype v0.2 · living office · local save only
+        </div>
+      </div>
+
+      {/* modals */}
+      {s.rosterOpen && (
+        <RosterModal
+          agents={s.agents}
+          onClose={() => setS(prev => ({ ...prev, rosterOpen: false }))}
+          onDetail={(a) => setS(prev => ({ ...prev, detailAgent: a }))}
+        />
+      )}
+      {s.detailAgent && (
+        <AgentDetailModal
+          agent={s.agents.find(x => x.id === s.detailAgent.id) || s.detailAgent}
+          onClose={() => setS(prev => ({ ...prev, detailAgent: null }))}
+        />
+      )}
+      {s.pendingReview && (
+        <ReviewReveal review={s.pendingReview} onContinue={onReviewContinue}/>
+      )}
+      {s.pendingOffers && (
+        <ProjectPickerModal
+          offers={s.pendingOffers}
+          reputation={s.reputation}
+          onPick={onPickProject}
+        />
+      )}
+      {s.eventPopover && (
+        <EventPopover
+          event={s.eventPopover}
+          onDismiss={() => setS(prev => ({ ...prev, eventPopover: null }))}
+        />
+      )}
+
+      {/* day transition */}
+      {dayTransition && <DayTransition newDay={dayTransition.newDay} />}
+
+      {/* legendary pull */}
+      {legendaryPull && (
+        <LegendaryPull agent={legendaryPull} onDismiss={() => setLegendaryPull(null)}/>
+      )}
+
+      {/* number popups layer */}
+      <NumberPopups popups={popups} />
+
+      {/* toast */}
+      {s.toast && !s.eventPopover && (
+        <div style={{
+          position:'fixed', bottom: 24, left:'50%', transform:'translateX(-50%)',
+          background: SURFACE, border:`1px solid ${ACCENT}`,
+          color: TEXT, padding:'8px 14px', borderRadius: 4,
+          fontSize: 14, letterSpacing: 0.3,
+          boxShadow:'0 10px 24px rgba(0,0,0,0.5)',
+          animation:'toastIn 240ms ease-out',
+          zIndex: 20,
+        }}>{s.toast}</div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
