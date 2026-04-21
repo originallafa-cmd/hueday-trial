@@ -453,7 +453,7 @@ function TitleBar({ dateStr, practiceMode }) {
   );
 }
 
-function Swatch({ hue, S, B, feedback, isActive, isEditable, size = 46, showDeg, distance, onClick }) {
+function Swatch({ hue, S, B, feedback, isActive, isEditable, size = 46, showDeg, distance, onClick, rowIdx, slotIdx, onDragStart }) {
   const outline =
       feedback === 'green'  ? HD_GREEN
     : feedback === 'yellow' ? HD_YELLOW
@@ -469,14 +469,21 @@ function Swatch({ hue, S, B, feedback, isActive, isEditable, size = 46, showDeg,
   else if (isActive) border = `2px solid #fff`;
   else border = `2px solid transparent`;
 
+  const canDragFrom = !empty && onDragStart != null;
+
   return (
     <div
+      data-drop-row={rowIdx != null ? rowIdx : undefined}
+      data-drop-slot={slotIdx != null ? slotIdx : undefined}
+      onPointerDown={canDragFrom ? (e) => onDragStart(e, hue, rowIdx, slotIdx) : undefined}
       onClick={isEditable ? onClick : undefined}
       style={{
         width: size, height: size, borderRadius: 10, background: bg, border,
         boxShadow: isActive && !empty ? '0 0 0 3px rgba(255,255,255,0.15)' : 'none',
         transition: 'background-color 80ms linear, border-color 120ms ease',
-        flexShrink: 0, position: 'relative', cursor: isEditable ? 'pointer' : 'default',
+        flexShrink: 0, position: 'relative',
+        cursor: canDragFrom ? 'grab' : isEditable ? 'pointer' : 'default',
+        touchAction: canDragFrom ? 'none' : 'auto',
       }}
     >
       {feedback === 'yellow' && (
@@ -579,7 +586,7 @@ function HowToPlay({ open, onToggle }) {
   );
 }
 
-function GuessGrid({ rows, puzzle, currentRow, activeSlotIdx, onSlotTap, swatchSize, rowGap, colGap }) {
+function GuessGrid({ rows, puzzle, currentRow, activeSlotIdx, onSlotTap, onDragStart, swatchSize, rowGap, colGap }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: rowGap, alignItems: 'center' }}>
       {rows.map((row, rIdx) => (
@@ -596,6 +603,9 @@ function GuessGrid({ rows, puzzle, currentRow, activeSlotIdx, onSlotTap, swatchS
                 feedback={row.submitted ? slot.feedback : null}
                 isActive={isActive}
                 isEditable={isEditable}
+                rowIdx={rIdx}
+                slotIdx={sIdx}
+                onDragStart={onDragStart}
                 size={swatchSize}
                 onClick={() => onSlotTap && onSlotTap(rIdx, sIdx)}
               />
@@ -923,6 +933,82 @@ function App() {
     }
   };
 
+  // ── Drag-to-move: pick up a filled slot, drop on a current-row slot ──
+  const dragRef = React.useRef(null);
+  const [dragVisual, setDragVisual] = React.useState(null); // { hue, x, y }
+
+  const onSwatchDragStart = (e, hue, rowIdx, slotIdx) => {
+    if (activeState !== 'in-progress' || hue == null) return;
+    dragRef.current = {
+      hue, startX: e.clientX, startY: e.clientY,
+      fromRow: rowIdx, fromSlot: slotIdx, active: false,
+    };
+  };
+
+  React.useEffect(() => {
+    const onMove = (e) => {
+      const d = dragRef.current;
+      if (!d) return;
+      if (!d.active) {
+        const dist = Math.hypot(e.clientX - d.startX, e.clientY - d.startY);
+        if (dist > 8) d.active = true;
+      }
+      if (d.active) {
+        setDragVisual({ hue: d.hue, x: e.clientX, y: e.clientY });
+      }
+    };
+    const onUp = (e) => {
+      const d = dragRef.current;
+      if (!d) return;
+      if (d.active) {
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        const slotEl = el && el.closest && el.closest('[data-drop-slot]');
+        if (slotEl) {
+          const targetRow  = parseInt(slotEl.getAttribute('data-drop-row'),  10);
+          const targetSlot = parseInt(slotEl.getAttribute('data-drop-slot'), 10);
+          const targetRows = practiceMode ? practiceRows : rows;
+          const targetCurr = practiceMode ? practiceCurrentRow : currentRow;
+          if (targetRow === targetCurr && !targetRows[targetCurr].submitted) {
+            // Don't drop onto its own source slot (no-op)
+            if (!(d.fromRow === targetRow && d.fromSlot === targetSlot)) {
+              if (practiceMode) {
+                setPracticeRows(prev => prev.map((r, i) =>
+                  i !== targetCurr ? r : {
+                    ...r, slots: r.slots.map((s, j) =>
+                      j === targetSlot ? { ...s, hue: d.hue, feedback: null, distance: null } : s
+                    ),
+                  }
+                ));
+                setPracticeActiveSlot(targetSlot);
+              } else {
+                setRows(prev => prev.map((r, i) =>
+                  i !== targetCurr ? r : {
+                    ...r, slots: r.slots.map((s, j) =>
+                      j === targetSlot ? { ...s, hue: d.hue, feedback: null, distance: null } : s
+                    ),
+                  }
+                ));
+                setActiveSlot(targetSlot);
+              }
+              setPickerHue(d.hue);
+              haptic(15);
+            }
+          }
+        }
+      }
+      dragRef.current = null;
+      setDragVisual(null);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+  }, [rows, currentRow, practiceMode, practiceRows, practiceCurrentRow]);
+
   const currentRowFilled = activeRows[activeRowIdx]?.slots.every(s => s.hue != null) ?? false;
   const canSubmit = activeState === 'in-progress' && currentRowFilled;
 
@@ -1090,6 +1176,7 @@ function App() {
             currentRow={activeRowIdx}
             activeSlotIdx={activeSlotIdx}
             onSlotTap={onSlotTap}
+            onDragStart={onSwatchDragStart}
             swatchSize={46}
             rowGap={7}
             colGap={7}
@@ -1172,6 +1259,23 @@ function App() {
           fontSize: 12, letterSpacing: 0.3,
           boxShadow: '0 10px 24px rgba(0,0,0,0.5)',
         }}>{toast}</div>
+      )}
+
+      {dragVisual && (
+        <div style={{
+          position: 'fixed',
+          left: dragVisual.x,
+          top: dragVisual.y,
+          transform: 'translate(-50%, -50%)',
+          width: 56, height: 56,
+          borderRadius: 14,
+          background: hsbCss(dragVisual.hue, puzzle.S, puzzle.B),
+          border: '3px solid #fff',
+          boxShadow: '0 10px 24px rgba(0,0,0,0.65), 0 0 0 6px rgba(255,255,255,0.08)',
+          pointerEvents: 'none',
+          zIndex: 1000,
+          transition: 'width 120ms ease, height 120ms ease',
+        }}/>
       )}
     </div>
   );
