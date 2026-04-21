@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Hueday mini — playable prototype</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#141414" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; }
+  html { background: #141414; }
+  body {
+    background: #141414;
+    color: #ededed;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+    min-height: 100%;
+    overscroll-behavior: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #root { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  button { -webkit-user-select: none; user-select: none; font-family: inherit; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+// ═══════════════════════════════════════════════════════════════════
+// Hueday mini — playable prototype (web; pre-Mac trial)
+//
+// Implements spec §2 (puzzle generator), §3 (feedback), §5 (state),
+// §6 (input), §7 (visuals, feedback rendering), §8 (midnight rollover).
+//
+// This is a prototype, not production. Haptics and audio chime are
+// web-approximated (Vibration API when available; short AudioContext
+// beep on completion).
+// ═══════════════════════════════════════════════════════════════════
+
+const HD_BG      = '#141414';
+const HD_SURFACE = '#1c1c1c';
+const HD_BORDER  = '#2a2a2a';
+const HD_TEXT    = '#ededed';
+const HD_MUTED   = '#7a7a7a';
+const HD_DASHED  = '#3a3a3a';
+const HD_GREEN   = '#4ade80';
+const HD_YELLOW  = '#facc15';
+const HD_GREY    = '#6b7280';
+
+const HD_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+
+const STORAGE_KEY = 'hueday-mini-state-v1';
+
+// ────────────────────────────────────────────────────────────────────
+// HSB → sRGB rendering (matches SwiftUI's Color(hue:sat:bright:))
+// Spec §1.1: canonical color model is HSB. Browsers only expose HSL
+// natively, so we convert explicitly.
+// ────────────────────────────────────────────────────────────────────
+function hsbToRgb(h, s, v) {
+  const hh = ((h % 360) + 360) % 360;
+  const c  = v * s;
+  const hp = hh / 60;
+  const x  = c * (1 - Math.abs((hp % 2) - 1));
+  let r = 0, g = 0, b = 0;
+  if      (hp < 1) { r = c; g = x; }
+  else if (hp < 2) { r = x; g = c; }
+  else if (hp < 3) { g = c; b = x; }
+  else if (hp < 4) { g = x; b = c; }
+  else if (hp < 5) { r = x; b = c; }
+  else             { r = c; b = x; }
+  const m = v - c;
+  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
+}
+function hsbCss(h, s, v) { const [r, g, b] = hsbToRgb(h, s, v); return `rgb(${r}, ${g}, ${b})`; }
+
+// ────────────────────────────────────────────────────────────────────
+// Deterministic puzzle generator (spec §2)
+// ────────────────────────────────────────────────────────────────────
+const MASK64 = 0xFFFFFFFFFFFFFFFFn;
+
+// FNV-1a 64-bit (spec §2.3)
+function fnv1a64(str) {
+  let h = 0xCBF29CE484222325n;
+  const PRIME = 0x100000001B3n;
+  for (let i = 0; i < str.length; i++) {
+    h = h ^ BigInt(str.charCodeAt(i) & 0xFF);
+    h = (h * PRIME) & MASK64;
+  }
+  return h;
+}
+
+// SplitMix64 next_uniform (spec §2.4)
+function nextUniform(state) {
+  let s = (state + 0x9E3779B97F4A7C15n) & MASK64;
+  let z = s;
+  z = ((z ^ (z >> 30n)) * 0xBF58476D1CE4E5B9n) & MASK64;
+  z = ((z ^ (z >> 27n)) * 0x94D049BB133111EBn) & MASK64;
+  z = z ^ (z >> 31n);
+  const u = Number(z >> 11n) / 9007199254740992; // 2^53
+  return [s, u];
+}
+
+// Local-date seed string "YYYY-MM-DD" (spec §2.2)
+function localDateString(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+// puzzleForDate(date) → {S, B, hues: [6]} — spec §2
+function puzzleForDate(dateStr) {
+  let state = fnv1a64(dateStr);
+  let u;
+  [state, u] = nextUniform(state); const S = 0.60 + u * 0.15;   // spec §2.5
+  [state, u] = nextUniform(state); const B = 0.48 + u * 0.10;   // spec §2.5
+  [state, u] = nextUniform(state); const alpha = u * 60;        // spec §2.6
+  const hues = [];
+  for (let i = 0; i < 6; i++) {
+    [state, u] = nextUniform(state);
+    const j = u * 30 - 15;
+    let h = alpha + 60 * i + j;
+    h = ((h % 360) + 360) % 360;
+    hues.push(h);
+  }
+  return { S, B, hues };
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Feedback algorithm (spec §3)
+// ────────────────────────────────────────────────────────────────────
+function angularDistance(g, t) {
+  const d = Math.abs(g - t) % 360;
+  return Math.min(d, 360 - d);
+}
+function feedbackFor(d) {
+  if (d <= 8)  return 'green';
+  if (d <= 30) return 'yellow';
+  return 'grey';
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Web approximations of spec §7 / §9 hardware feedback
+// ────────────────────────────────────────────────────────────────────
+function haptic(intensity = 15) {
+  if (navigator.vibrate) try { navigator.vibrate(intensity); } catch (_) {}
+}
+let audioCtx = null;
+function chime() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'sine'; o.frequency.value = 880;
+    g.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.15, audioCtx.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.55);
+    o.connect(g).connect(audioCtx.destination);
+    o.start();
+    o.stop(audioCtx.currentTime + 0.6);
+  } catch (_) {}
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Local-storage persistence (spec §5.2)
+// ────────────────────────────────────────────────────────────────────
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (_) { return null; }
+}
+function saveState(s) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch (_) {}
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Visual primitives
+// ────────────────────────────────────────────────────────────────────
+function TitleBar({ dateStr, onTitleTap }) {
+  const display = dateStr ? new Date(dateStr + 'T12:00:00').toLocaleDateString(undefined, {
+    weekday: 'long', month: 'long', day: 'numeric',
+  }) : '';
+  return (
+    <div style={{ paddingTop: 18, paddingBottom: 14, textAlign: 'center' }}>
+      <div onClick={onTitleTap} style={{
+        fontSize: 13, fontWeight: 600, letterSpacing: 3,
+        color: HD_TEXT, textTransform: 'uppercase', cursor: 'default',
+      }}>Hueday <span style={{ color: HD_MUTED, fontSize: 10 }}>mini</span></div>
+      <div style={{
+        fontSize: 11, color: HD_MUTED, marginTop: 3, letterSpacing: 0.2,
+      }}>{display}</div>
+    </div>
+  );
+}
+
+function Swatch({ hue, S, B, feedback, isActive, isEditable, size = 46, showDeg, distance, onClick }) {
+  const outline =
+      feedback === 'green'  ? HD_GREEN
+    : feedback === 'yellow' ? HD_YELLOW
+    : feedback === 'grey'   ? HD_GREY
+    : null;
+
+  const empty = hue == null;
+  const bg = empty ? 'transparent' : hsbCss(hue, S, B);
+
+  let border;
+  if (empty) border = `1.5px dashed ${isActive ? '#fff' : HD_DASHED}`;
+  else if (outline) border = `2px solid ${outline}`;
+  else if (isActive) border = `2px solid #fff`;
+  else border = `2px solid transparent`;
+
+  return (
+    <div
+      onClick={isEditable ? onClick : undefined}
+      style={{
+        width: size, height: size, borderRadius: 10, background: bg, border,
+        boxShadow: isActive && !empty ? '0 0 0 3px rgba(255,255,255,0.15)' : 'none',
+        transition: 'background-color 80ms linear, border-color 120ms ease',
+        flexShrink: 0, position: 'relative', cursor: isEditable ? 'pointer' : 'default',
+      }}
+    >
+      {showDeg && distance != null && (
+        <div style={{
+          position: 'absolute', bottom: -17, left: 0, right: 0, textAlign: 'center',
+          fontSize: 9.5, color: HD_MUTED, letterSpacing: 0.3,
+          fontVariantNumeric: 'tabular-nums', fontFamily: HD_FONT,
+        }}>{Math.round(distance)}°</div>
+      )}
+    </div>
+  );
+}
+
+function GuessGrid({ rows, puzzle, currentRow, activeSlotIdx, onSlotTap, swatchSize, rowGap, colGap }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: rowGap, alignItems: 'center' }}>
+      {rows.map((row, rIdx) => (
+        <div key={rIdx} style={{ display: 'flex', gap: colGap }}>
+          {row.slots.map((slot, sIdx) => {
+            const isActive = rIdx === currentRow && sIdx === activeSlotIdx && !row.submitted;
+            const isEditable = rIdx === currentRow && !row.submitted;
+            return (
+              <Swatch
+                key={sIdx}
+                hue={slot.hue}
+                S={puzzle.S}
+                B={puzzle.B}
+                feedback={row.submitted ? slot.feedback : null}
+                isActive={isActive}
+                isEditable={isEditable}
+                size={swatchSize}
+                onClick={() => onSlotTap && onSlotTap(rIdx, sIdx)}
+              />
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TargetRow({ puzzle, guesses, showDeg, fading }) {
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+      opacity: fading ? 0 : 1,
+      transform: fading ? 'translateY(-8px)' : 'translateY(0)',
+      transition: 'opacity 1000ms ease, transform 1000ms ease',
+    }}>
+      <div style={{
+        fontSize: 9.5, color: HD_MUTED, letterSpacing: 2.5, textTransform: 'uppercase',
+      }}>Target</div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        {puzzle.hues.map((h, i) => {
+          const dist = guesses ? angularDistance(guesses[i], h) : null;
+          return (
+            <div key={i} style={{ position: 'relative' }}>
+              <div style={{
+                width: 46, height: 46, borderRadius: 10,
+                background: hsbCss(h, puzzle.S, puzzle.B),
+                border: '2px solid rgba(255,255,255,0.18)',
+              }}/>
+              {showDeg && dist != null && (
+                <div style={{
+                  position: 'absolute', bottom: -17, left: 0, right: 0, textAlign: 'center',
+                  fontSize: 9.5, color: HD_MUTED, letterSpacing: 0.3,
+                  fontVariantNumeric: 'tabular-nums',
+                }}>{Math.round(dist)}°</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SubmitButton({ enabled, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={!enabled}
+      style={{
+        width: '100%', height: 52, borderRadius: 14, border: 'none',
+        background: enabled ? '#fafafa' : '#2a2a2a',
+        color: enabled ? '#0e0e0e' : '#6a6a6a',
+        fontSize: 15, fontWeight: 600, letterSpacing: 0.3,
+        cursor: enabled ? 'pointer' : 'default',
+        transition: 'background-color 180ms ease, color 180ms ease',
+        textTransform: 'uppercase',
+      }}
+    >Submit</button>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Horizontal strip picker (spec §6.5 + §7 live-readout HIDDEN)
+// ────────────────────────────────────────────────────────────────────
+function HorizontalPicker({ hueVal, puzzle, onChange, onCommit, disabled }) {
+  const trackRef = React.useRef(null);
+  const [dragging, setDragging] = React.useState(false);
+
+  const setFromClientX = (cx) => {
+    const el = trackRef.current; if (!el) return;
+    const r = el.getBoundingClientRect();
+    const x = Math.max(0, Math.min(r.width, cx - r.left));
+    const h = (x / r.width) * 360;
+    onChange(h);
+  };
+  const onDown = (e) => {
+    if (disabled) return;
+    e.preventDefault();
+    setDragging(true);
+    trackRef.current.setPointerCapture(e.pointerId);
+    setFromClientX(e.clientX);
+  };
+  const onMove = (e) => { if (dragging) setFromClientX(e.clientX); };
+  const onUp = (e) => {
+    if (dragging) { setDragging(false); haptic(10); onCommit && onCommit(); }
+    try { trackRef.current.releasePointerCapture(e.pointerId); } catch (_) {}
+  };
+
+  // Rainbow bar rendered in HSB (to match how swatches render) via RGB stops.
+  const stops = Array.from({ length: 25 }, (_, i) => {
+    const h = (i / 24) * 360;
+    return hsbCss(h, puzzle.S, puzzle.B) + ' ' + ((i / 24) * 100).toFixed(1) + '%';
+  }).join(', ');
+  const rainbow = `linear-gradient(to right, ${stops})`;
+
+  return (
+    <div style={{ position: 'relative', padding: '22px 16px 18px', opacity: disabled ? 0.35 : 1, pointerEvents: disabled ? 'none' : 'auto' }}>
+      <div
+        ref={trackRef}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
+        style={{
+          height: 56, width: '100%', borderRadius: 28,
+          background: rainbow, position: 'relative',
+          touchAction: 'none', cursor: 'pointer',
+        }}
+      >
+        <div style={{
+          position: 'absolute',
+          left: `${(hueVal / 360) * 100}%`,
+          top: '50%',
+          transform: `translate(-50%, -50%) scale(${dragging ? 1.1 : 1})`,
+          width: 44, height: 64, borderRadius: 22,
+          background: hsbCss(hueVal, puzzle.S, puzzle.B),
+          boxShadow: '0 0 0 3px #141414, 0 0 0 4.5px #fff, 0 6px 16px rgba(0,0,0,0.6)',
+          pointerEvents: 'none',
+          transition: 'transform 120ms ease',
+        }}/>
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Main app
+// ────────────────────────────────────────────────────────────────────
+function makeEmptyRows() {
+  return Array.from({ length: 6 }, () => ({
+    submitted: false,
+    slots: Array.from({ length: 6 }, () => ({ hue: null, feedback: null })),
+  }));
+}
+
+function App() {
+  const [dateStr, setDateStr]       = React.useState(localDateString());
+  const [puzzle, setPuzzle]         = React.useState(() => puzzleForDate(localDateString()));
+  const [rows, setRows]             = React.useState(makeEmptyRows);
+  const [currentRow, setCurrentRow] = React.useState(0);
+  const [activeSlot, setActiveSlot] = React.useState(0);
+  const [state, setState]           = React.useState('in-progress'); // 'in-progress' | 'solved' | 'failed'
+  const [pickerHue, setPickerHue]   = React.useState(180);
+  const [showDeg, setShowDeg]       = React.useState(false);
+  const [fading, setFading]         = React.useState(false);
+  const [toast, setToast]           = React.useState(null);
+
+  // ── Load persisted state on first mount ──
+  React.useEffect(() => {
+    const saved = loadState();
+    const today = localDateString();
+    if (saved && saved.dateStr === today) {
+      setDateStr(saved.dateStr);
+      setPuzzle(puzzleForDate(today));
+      setRows(saved.rows || makeEmptyRows());
+      setCurrentRow(saved.currentRow ?? 0);
+      setActiveSlot(saved.activeSlot ?? 0);
+      setState(saved.state ?? 'in-progress');
+    } else {
+      // fresh puzzle for today (also handles first-ever launch)
+      setDateStr(today);
+      setPuzzle(puzzleForDate(today));
+      setRows(makeEmptyRows());
+      setCurrentRow(0);
+      setActiveSlot(0);
+      setState('in-progress');
+    }
+  }, []);
+
+  // ── Persist on change ──
+  React.useEffect(() => {
+    saveState({ dateStr, rows, currentRow, activeSlot, state });
+  }, [dateStr, rows, currentRow, activeSlot, state]);
+
+  // ── Midnight rollover via visibility-change (spec §8.1) ──
+  React.useEffect(() => {
+    const check = () => {
+      const today = localDateString();
+      if (today !== dateStr) {
+        setDateStr(today);
+        setPuzzle(puzzleForDate(today));
+        setRows(makeEmptyRows());
+        setCurrentRow(0);
+        setActiveSlot(0);
+        setState('in-progress');
+        setPickerHue(180);
+        setShowDeg(false);
+        setFading(false);
+        setToast('New day — puzzle reset.');
+        setTimeout(() => setToast(null), 2200);
+      }
+    };
+    const onVis = () => { if (document.visibilityState === 'visible') check(); };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('focus', check);
+    const id = setInterval(check, 30000); // every 30s as a belt-and-suspenders
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('focus', check);
+      clearInterval(id);
+    };
+  }, [dateStr]);
+
+  // ── Picker hue tracks the active slot's hue (or default if empty) ──
+  React.useEffect(() => {
+    if (state !== 'in-progress') return;
+    const row = rows[currentRow];
+    if (!row) return;
+    const slot = row.slots[activeSlot];
+    setPickerHue(slot.hue != null ? slot.hue : 180);
+  }, [currentRow, activeSlot, state, rows]);
+
+  // ── Handlers ──
+  const onPickerChange = (h) => {
+    if (state !== 'in-progress') return;
+    setPickerHue(h);
+    setRows(prev => {
+      const next = prev.map((r, i) => i === currentRow ? {
+        ...r,
+        slots: r.slots.map((s, j) => j === activeSlot ? { ...s, hue: h } : s),
+      } : r);
+      return next;
+    });
+  };
+
+  const onSlotTap = (rIdx, sIdx) => {
+    if (rIdx !== currentRow) return;
+    if (rows[rIdx].submitted) return;
+    setActiveSlot(sIdx);
+  };
+
+  const currentRowFilled = rows[currentRow]?.slots.every(s => s.hue != null) ?? false;
+  const canSubmit = state === 'in-progress' && currentRowFilled;
+
+  const onSubmit = () => {
+    if (!canSubmit) return;
+    // Midnight-on-submit re-check (spec §8.2)
+    const today = localDateString();
+    if (today !== dateStr) {
+      setDateStr(today);
+      setPuzzle(puzzleForDate(today));
+      setRows(makeEmptyRows());
+      setCurrentRow(0);
+      setActiveSlot(0);
+      setState('in-progress');
+      setPickerHue(180);
+      setToast('Midnight passed — new puzzle.');
+      setTimeout(() => setToast(null), 2200);
+      return;
+    }
+
+    haptic(20);
+    setRows(prev => {
+      const next = prev.map((r, i) => {
+        if (i !== currentRow) return r;
+        const scored = r.slots.map((s, j) => {
+          const d = angularDistance(s.hue, puzzle.hues[j]);
+          return { ...s, feedback: feedbackFor(d), distance: d };
+        });
+        return { ...r, submitted: true, slots: scored };
+      });
+      return next;
+    });
+
+    const submittedSlots = rows[currentRow].slots.map((s, j) => feedbackFor(angularDistance(s.hue, puzzle.hues[j])));
+    const allGreen = submittedSlots.every(f => f === 'green');
+
+    if (allGreen) {
+      setState('solved');
+      chime();
+      setTimeout(() => { /* target row shows instantly for solve; spec §7 */ }, 0);
+    } else if (currentRow >= 5) {
+      setState('failed');
+      setFading(true);
+      // 1-second fade-in on fail (spec §7)
+      setTimeout(() => setFading(false), 50);
+    } else {
+      setCurrentRow(currentRow + 1);
+      setActiveSlot(0);
+    }
+  };
+
+  const rowsForRender = rows;
+  const done = state !== 'in-progress';
+  const solved = state === 'solved';
+  const lastGuesses = state !== 'in-progress'
+    ? (state === 'solved' ? rows[currentRow].slots.map(s => s.hue) : rows[5].slots.map(s => s.hue))
+    : null;
+
+  return (
+    <div style={{
+      width: 'min(420px, 100vw)',
+      minHeight: '100vh',
+      background: HD_BG,
+      color: HD_TEXT,
+      fontFamily: HD_FONT,
+      display: 'flex', flexDirection: 'column',
+      paddingTop: 'max(20px, env(safe-area-inset-top))',
+      paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
+      boxSizing: 'border-box',
+      position: 'relative',
+    }}>
+      <TitleBar dateStr={dateStr} />
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '4px 18px 0', minHeight: 0 }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 14 }}>
+          <GuessGrid
+            rows={rowsForRender}
+            puzzle={puzzle}
+            currentRow={currentRow}
+            activeSlotIdx={activeSlot}
+            onSlotTap={onSlotTap}
+            swatchSize={46}
+            rowGap={7}
+            colGap={7}
+          />
+
+          {done && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginTop: 6 }}>
+              <TargetRow puzzle={puzzle} guesses={lastGuesses} showDeg={showDeg} fading={fading && !solved} />
+              <div style={{ marginTop: showDeg ? 18 : 6, fontSize: 11, color: HD_TEXT, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 600 }}>
+                {solved ? `Solved in ${currentRow + 1}` : 'Out of guesses'}
+              </div>
+              <button
+                onClick={() => setShowDeg(v => !v)}
+                style={{
+                  background: 'transparent', border: 'none',
+                  color: HD_MUTED, fontSize: 11, letterSpacing: 0.8,
+                  textTransform: 'uppercase', cursor: 'pointer',
+                  padding: '4px 8px',
+                }}
+              >{showDeg ? 'hide degrees' : 'show degrees'}</button>
+            </div>
+          )}
+        </div>
+
+        <HorizontalPicker
+          hueVal={pickerHue}
+          puzzle={puzzle}
+          onChange={onPickerChange}
+          onCommit={() => {}}
+          disabled={done}
+        />
+
+        <div style={{ padding: '2px 0 8px' }}>
+          <SubmitButton enabled={canSubmit} onClick={onSubmit} />
+        </div>
+
+        <div style={{ textAlign: 'center', fontSize: 10, color: HD_MUTED, letterSpacing: 0.6, padding: '6px 0 2px' }}>
+          Prototype · spec-accurate · local state only · no server
+        </div>
+      </div>
+
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          background: HD_SURFACE, border: `1px solid ${HD_BORDER}`,
+          color: HD_TEXT, padding: '10px 16px', borderRadius: 12,
+          fontSize: 12, letterSpacing: 0.3,
+          boxShadow: '0 10px 24px rgba(0,0,0,0.5)',
+        }}>{toast}</div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
