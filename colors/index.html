@@ -754,7 +754,23 @@ function HorizontalPicker({ hueVal, puzzle, onChange, onCommit, disabled }) {
   const rainbow = `linear-gradient(to right, ${stops})`;
 
   return (
-    <div style={{ position: 'relative', padding: '22px 16px 18px', opacity: disabled ? 0.35 : 1, pointerEvents: disabled ? 'none' : 'auto' }}>
+    <div style={{ position: 'relative', padding: '34px 16px 18px', opacity: disabled ? 0.35 : 1, pointerEvents: disabled ? 'none' : 'auto' }}>
+      {/* Fixed live hue readout — centered above the picker, always visible,
+          brighter while dragging. Outside the track so the thumb can't cover it. */}
+      <div style={{
+        position: 'absolute',
+        top: 6, left: 0, right: 0,
+        textAlign: 'center',
+        fontSize: 12, fontWeight: 700,
+        letterSpacing: 1.2,
+        color: HD_TEXT,
+        fontVariantNumeric: 'tabular-nums',
+        pointerEvents: 'none',
+        opacity: dragging ? 1 : 0.55,
+        transition: 'opacity 140ms ease',
+        whiteSpace: 'nowrap',
+        zIndex: 5,
+      }}>HUE {Math.round(hueVal)}°</div>
       <div
         ref={trackRef}
         onPointerDown={onDown}
@@ -767,25 +783,6 @@ function HorizontalPicker({ hueVal, puzzle, onChange, onCommit, disabled }) {
           touchAction: 'none', cursor: 'pointer',
         }}
       >
-        {/* Floating live hue readout — appears only while dragging */}
-        <div style={{
-          position: 'absolute',
-          left: `${(hueVal / 360) * 100}%`,
-          top: -18,
-          transform: 'translateX(-50%)',
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: 0.6,
-          color: HD_TEXT,
-          background: 'rgba(0,0,0,0.55)',
-          padding: '2px 8px',
-          borderRadius: 10,
-          fontVariantNumeric: 'tabular-nums',
-          pointerEvents: 'none',
-          opacity: dragging ? 1 : 0,
-          transition: 'opacity 120ms ease',
-          whiteSpace: 'nowrap',
-        }}>h {Math.round(hueVal)}°</div>
         <div style={{
           position: 'absolute',
           left: `${(hueVal / 360) * 100}%`,
@@ -989,25 +986,29 @@ function App() {
           if (targetRow === targetCurr && !targetRows[targetCurr].submitted) {
             // Don't drop onto its own source slot (no-op)
             if (!(d.fromRow === targetRow && d.fromSlot === targetSlot)) {
-              if (practiceMode) {
-                setPracticeRows(prev => prev.map((r, i) =>
-                  i !== targetCurr ? r : {
-                    ...r, slots: r.slots.map((s, j) =>
-                      j === targetSlot ? { ...s, hue: d.hue, feedback: null, distance: null } : s
-                    ),
-                  }
-                ));
-                setPracticeActiveSlot(targetSlot);
-              } else {
-                setRows(prev => prev.map((r, i) =>
-                  i !== targetCurr ? r : {
-                    ...r, slots: r.slots.map((s, j) =>
-                      j === targetSlot ? { ...s, hue: d.hue, feedback: null, distance: null } : s
-                    ),
-                  }
-                ));
-                setActiveSlot(targetSlot);
-              }
+              const sameRow = d.fromRow === targetRow;
+              // Same-row drag: SWAP (move). Cross-row (from submitted above): COPY.
+              // In swap case, read what's currently at the target slot BEFORE the update.
+              const targetHueBefore = targetRows[targetCurr].slots[targetSlot].hue;
+              const setter = practiceMode ? setPracticeRows : setRows;
+              setter(prev => prev.map((r, i) => {
+                if (i !== targetCurr) return r;
+                return {
+                  ...r,
+                  slots: r.slots.map((s, j) => {
+                    if (j === targetSlot) {
+                      return { ...s, hue: d.hue, feedback: null, distance: null };
+                    }
+                    if (sameRow && j === d.fromSlot) {
+                      // Move: clear source if target was empty. Swap: target's old hue moves here.
+                      return { ...s, hue: targetHueBefore, feedback: null, distance: null };
+                    }
+                    return s;
+                  }),
+                };
+              }));
+              if (practiceMode) setPracticeActiveSlot(targetSlot);
+              else              setActiveSlot(targetSlot);
               setPickerHue(d.hue);
               haptic(15);
             }
