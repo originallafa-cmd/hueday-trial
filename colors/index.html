@@ -138,10 +138,45 @@ function angularDistance(g, t) {
   const d = Math.abs(g - t) % 360;
   return Math.min(d, 360 - d);
 }
-function feedbackFor(d) {
-  if (d <= 8)  return 'green';
-  if (d <= 30) return 'yellow';
-  return 'grey';
+// Wordle-style cross-slot feedback across a row of continuous hues.
+// - GREEN  : guess is within 8° of the target AT THE SAME SLOT (exact hit)
+// - YELLOW : guess is within 8° of an unclaimed target AT A DIFFERENT SLOT
+//            (right color, wrong position — swap it to the right slot)
+// - GREY   : no target available within 8° (not in today's puzzle)
+// Each target can only be "claimed" by one slot. If you guess two reds
+// but the puzzle has one red, only one slot earns yellow. Wordle rules.
+function feedbackForRow(guesses, targets) {
+  const EXACT = 8;
+  const feedback = new Array(6).fill(null);
+  const dist = new Array(6).fill(null);
+  const claimed = new Array(6).fill(false);
+  // Pass 1 — greens: same-slot exact match
+  for (let i = 0; i < 6; i++) {
+    const d = angularDistance(guesses[i], targets[i]);
+    dist[i] = d;
+    if (d <= EXACT) {
+      feedback[i] = 'green';
+      claimed[i] = true;
+    }
+  }
+  // Pass 2 — yellows: cross-slot exact (right color, wrong position).
+  // Best (closest) unclaimed target wins per slot.
+  for (let i = 0; i < 6; i++) {
+    if (feedback[i]) continue;
+    let bestJ = -1, bestD = Infinity;
+    for (let j = 0; j < 6; j++) {
+      if (claimed[j]) continue;
+      const d = angularDistance(guesses[i], targets[j]);
+      if (d <= EXACT && d < bestD) { bestD = d; bestJ = j; }
+    }
+    if (bestJ !== -1) {
+      feedback[i] = 'yellow';
+      claimed[bestJ] = true;
+    }
+  }
+  // Pass 3 — everything else is grey
+  for (let i = 0; i < 6; i++) if (!feedback[i]) feedback[i] = 'grey';
+  return { feedback, dist };
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -226,12 +261,98 @@ function Swatch({ hue, S, B, feedback, isActive, isEditable, size = 46, showDeg,
         flexShrink: 0, position: 'relative', cursor: isEditable ? 'pointer' : 'default',
       }}
     >
+      {feedback === 'yellow' && (
+        <div style={{
+          position: 'absolute', top: -5, right: -5,
+          width: 16, height: 16, borderRadius: 8,
+          background: HD_YELLOW, color: '#0a0a0a',
+          fontSize: 9, fontWeight: 900,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 0 0 2px ' + HD_BG,
+          lineHeight: 1, pointerEvents: 'none',
+        }} title="Right color, wrong slot">↔</div>
+      )}
       {showDeg && distance != null && (
         <div style={{
           position: 'absolute', bottom: -17, left: 0, right: 0, textAlign: 'center',
           fontSize: 9.5, color: HD_MUTED, letterSpacing: 0.3,
           fontVariantNumeric: 'tabular-nums', fontFamily: HD_FONT,
         }}>{Math.round(distance)}°</div>
+      )}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────
+// How-to-Play / legend — visible instructions + feedback legend.
+// Expanded by default on first load; collapses to a header the user
+// can re-open with the ▼ control.
+// ────────────────────────────────────────────────────────────────────
+function LegendRow({ color, label, text, arrow }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11 }}>
+      <div style={{
+        width: 20, height: 20, borderRadius: 5,
+        border: '2px solid ' + color,
+        background: 'rgba(255,255,255,0.04)',
+        position: 'relative', flexShrink: 0,
+      }}>
+        {arrow && <div style={{
+          position: 'absolute', top: -5, right: -5,
+          width: 12, height: 12, borderRadius: 6,
+          background: color, color: '#0a0a0a',
+          fontSize: 7, fontWeight: 900,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 0 0 2px ' + HD_BG,
+          lineHeight: 1,
+        }}>↔</div>}
+      </div>
+      <div style={{ fontWeight: 700, letterSpacing: 1, fontSize: 10, width: 60, color: color }}>{label}</div>
+      <div style={{ color: HD_TEXT, flex: 1 }}>{text}</div>
+    </div>
+  );
+}
+function HowToPlay({ open, onToggle }) {
+  return (
+    <div style={{
+      margin: '0 18px 10px',
+      background: HD_SURFACE,
+      border: '1px solid ' + HD_BORDER,
+      borderRadius: 10,
+      overflow: 'hidden',
+    }}>
+      <div onClick={onToggle} style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '10px 12px', cursor: 'pointer', userSelect: 'none',
+      }}>
+        <div style={{
+          fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase',
+          color: HD_TEXT,
+        }}>How to play</div>
+        <div style={{ fontSize: 11, color: HD_MUTED }}>{open ? '▲' : '▼'}</div>
+      </div>
+      {open && (
+        <div style={{ padding: '0 12px 12px', color: '#cfcfcf', fontSize: 11, lineHeight: 1.55 }}>
+          <p style={{ margin: '2px 0 8px' }}>
+            <span style={{ color: HD_TEXT, fontWeight: 600 }}>Goal:</span>{' '}
+            match today's <b>6 hidden colors</b> in 6 guesses. One puzzle a day.
+          </p>
+          <p style={{ margin: '0 0 10px' }}>
+            <span style={{ color: HD_TEXT, fontWeight: 600 }}>How:</span>{' '}
+            tap a slot, drag the color bar to pick its hue, repeat for all 6, then press <b>Submit</b>. Tap any filled slot before submit to re-edit.
+          </p>
+          <div style={{
+            margin: '0 0 6px', color: HD_MUTED, fontSize: 9.5, letterSpacing: 2, textTransform: 'uppercase',
+          }}>Feedback after each guess</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <LegendRow color={HD_GREEN}  label="GREEN"  text="exact color, right slot — lock it in" />
+            <LegendRow color={HD_YELLOW} label="YELLOW" text="right color, wrong slot — move it somewhere else" arrow />
+            <LegendRow color={HD_GREY}   label="GREY"   text="not in today's puzzle — try a different hue" />
+          </div>
+          <p style={{ margin: '10px 0 0', color: HD_MUTED, fontSize: 10, lineHeight: 1.45 }}>
+            Hints are within <b>8°</b> on the color wheel. Get all six green in 6 tries to win.
+          </p>
+        </div>
       )}
     </div>
   );
@@ -404,6 +525,17 @@ function App() {
   const [showDeg, setShowDeg]       = React.useState(false);
   const [fading, setFading]         = React.useState(false);
   const [toast, setToast]           = React.useState(null);
+  const [howToOpen, setHowToOpen]   = React.useState(() => {
+    try { return localStorage.getItem('hueday-how-to-seen') !== '1'; }
+    catch (_) { return true; }
+  });
+  const toggleHowTo = () => {
+    setHowToOpen(v => {
+      const next = !v;
+      try { if (!next) localStorage.setItem('hueday-how-to-seen', '1'); } catch (_) {}
+      return next;
+    });
+  };
 
   // ── Load persisted state on first mount ──
   React.useEffect(() => {
@@ -510,20 +642,20 @@ function App() {
     }
 
     haptic(20);
+    const guesses = rows[currentRow].slots.map(s => s.hue);
+    const { feedback: rowFb, dist: rowDist } = feedbackForRow(guesses, puzzle.hues);
     setRows(prev => {
       const next = prev.map((r, i) => {
         if (i !== currentRow) return r;
-        const scored = r.slots.map((s, j) => {
-          const d = angularDistance(s.hue, puzzle.hues[j]);
-          return { ...s, feedback: feedbackFor(d), distance: d };
-        });
+        const scored = r.slots.map((s, j) => ({
+          ...s, feedback: rowFb[j], distance: rowDist[j],
+        }));
         return { ...r, submitted: true, slots: scored };
       });
       return next;
     });
 
-    const submittedSlots = rows[currentRow].slots.map((s, j) => feedbackFor(angularDistance(s.hue, puzzle.hues[j])));
-    const allGreen = submittedSlots.every(f => f === 'green');
+    const allGreen = rowFb.every(f => f === 'green');
 
     if (allGreen) {
       setState('solved');
@@ -561,6 +693,8 @@ function App() {
       position: 'relative',
     }}>
       <TitleBar dateStr={dateStr} />
+
+      <HowToPlay open={howToOpen} onToggle={toggleHowTo} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '4px 18px 0', minHeight: 0 }}>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 14 }}>
