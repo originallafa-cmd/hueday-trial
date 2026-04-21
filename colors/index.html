@@ -738,79 +738,169 @@ function CopyLastGuessButton({ onClick }) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Horizontal strip picker (spec §6.5 + §7 live-readout HIDDEN)
+// Full-wheel radial picker (spec §6.5 + §7 live-readout INSIDE center disc)
+// Drop-in replacement for HorizontalPicker — same props contract:
+//   { hueVal, puzzle, onChange, onCommit, disabled }
+//
+// Geometry:
+//   • 240×240 square container
+//   • Ring: outer radius 120, inner radius 84 (thickness 36)
+//   • 0° at 12 o'clock, increasing clockwise
+//   • Conic-gradient ring rendered in HSB via 24 RGB stops
+//   • CSS radial-gradient mask punches out the center hole
 // ────────────────────────────────────────────────────────────────────
-function HorizontalPicker({ hueVal, puzzle, onChange, onCommit, disabled }) {
-  const trackRef = React.useRef(null);
+function WheelPicker({ hueVal, puzzle, onChange, onCommit, disabled }) {
+  const WHEEL       = 240;
+  const OUTER_R     = 120;
+  const INNER_R     = 84;
+  const CENTER_R    = 70;             // 140 / 2
+  const RING_MID    = (OUTER_R + INNER_R) / 2; // 102
+  const THUMB_SIZE  = 44;
+
+  const containerRef = React.useRef(null);
   const [dragging, setDragging] = React.useState(false);
 
-  const setFromClientX = (cx) => {
-    const el = trackRef.current; if (!el) return;
+  // Build a 24-stop conic gradient rendered in HSB (matches swatch colors).
+  const conicStops = React.useMemo(() => {
+    const parts = [];
+    for (let i = 0; i <= 24; i++) {
+      const h = (i / 24) * 360;
+      const pct = ((i / 24) * 100).toFixed(2);
+      parts.push(`${hsbCss(h, puzzle.S, puzzle.B)} ${pct}%`);
+    }
+    // from 0deg at 12 o'clock (top). `from 0deg` = CSS default; rotate so 0° sits at top.
+    return `conic-gradient(from 0deg at 50% 50%, ${parts.join(', ')})`;
+  }, [puzzle.S, puzzle.B]);
+
+  // CSS mask punches out a transparent center hole so only the ring shows.
+  const ringMask =
+    `radial-gradient(circle at center, transparent ${INNER_R}px, #000 ${INNER_R + 0.5}px)`;
+
+  // Pointer → hue. 0° at 12 o'clock, clockwise positive.
+  const hueFromPoint = (cx, cy) => {
+    const el = containerRef.current;
+    if (!el) return hueVal;
     const r = el.getBoundingClientRect();
-    const x = Math.max(0, Math.min(r.width, cx - r.left));
-    const h = (x / r.width) * 360;
-    onChange(h);
+    const x = cx - (r.left + r.width / 2);
+    const y = cy - (r.top  + r.height / 2);
+    let deg = Math.atan2(x, -y) * 180 / Math.PI;
+    if (deg < 0) deg += 360;
+    return deg;
   };
+
   const onDown = (e) => {
     if (disabled) return;
     e.preventDefault();
     setDragging(true);
-    trackRef.current.setPointerCapture(e.pointerId);
-    setFromClientX(e.clientX);
+    try { containerRef.current.setPointerCapture(e.pointerId); } catch (_) {}
+    onChange(hueFromPoint(e.clientX, e.clientY));
   };
-  const onMove = (e) => { if (dragging) setFromClientX(e.clientX); };
+  const onMove = (e) => {
+    if (!dragging) return;
+    onChange(hueFromPoint(e.clientX, e.clientY));
+  };
   const onUp = (e) => {
     if (dragging) { setDragging(false); haptic(10); onCommit && onCommit(); }
-    try { trackRef.current.releasePointerCapture(e.pointerId); } catch (_) {}
+    try { containerRef.current.releasePointerCapture(e.pointerId); } catch (_) {}
   };
 
-  // Rainbow bar rendered in HSB (to match how swatches render) via RGB stops.
-  const stops = Array.from({ length: 25 }, (_, i) => {
-    const h = (i / 24) * 360;
-    return hsbCss(h, puzzle.S, puzzle.B) + ' ' + ((i / 24) * 100).toFixed(1) + '%';
-  }).join(', ');
-  const rainbow = `linear-gradient(to right, ${stops})`;
+  // Thumb position on the ring centerline at current hue.
+  const rad = (hueVal - 90) * Math.PI / 180;
+  const thumbX = WHEEL / 2 + RING_MID * Math.cos(rad);
+  const thumbY = WHEEL / 2 + RING_MID * Math.sin(rad);
+
+  // Auto-contrast text color over the center hue fill.
+  const h = ((hueVal % 360) + 360) % 360;
+  const lightBg = (h >= 40 && h <= 180);
+  const textColor = lightBg ? '#0a0a0a' : '#fff';
+  const mutedTextColor = lightBg ? 'rgba(10,10,10,0.55)' : 'rgba(255,255,255,0.65)';
+
+  const centerBg = hsbCss(hueVal, puzzle.S, puzzle.B);
 
   return (
-    <div style={{ position: 'relative', padding: '34px 16px 18px', opacity: disabled ? 0.35 : 1, pointerEvents: disabled ? 'none' : 'auto' }}>
-      {/* Fixed live hue readout — centered above the picker, always visible,
-          brighter while dragging. Outside the track so the thumb can't cover it. */}
-      <div style={{
-        position: 'absolute',
-        top: 6, left: 0, right: 0,
-        textAlign: 'center',
-        fontSize: 12, fontWeight: 700,
-        letterSpacing: 1.2,
-        color: HD_TEXT,
-        fontVariantNumeric: 'tabular-nums',
-        pointerEvents: 'none',
-        opacity: dragging ? 1 : 0.55,
-        transition: 'opacity 140ms ease',
-        whiteSpace: 'nowrap',
-        zIndex: 5,
-      }}>HUE {Math.round(hueVal)}°</div>
+    <div style={{
+      display: 'flex', justifyContent: 'center', alignItems: 'center',
+      padding: '8px 0 6px',
+      opacity: disabled ? 0.35 : 1,
+      pointerEvents: disabled ? 'none' : 'auto',
+    }}>
       <div
-        ref={trackRef}
+        ref={containerRef}
+        role="slider"
+        aria-valuenow={Math.round(hueVal)}
+        aria-valuemin={0}
+        aria-valuemax={360}
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerCancel={onUp}
         style={{
-          height: 56, width: '100%', borderRadius: 28,
-          background: rainbow, position: 'relative',
-          touchAction: 'none', cursor: 'pointer',
+          position: 'relative',
+          width: WHEEL, height: WHEEL,
+          touchAction: 'none',
+          cursor: disabled ? 'default' : 'pointer',
         }}
       >
+        {/* Conic ring with center punched out via CSS mask */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          borderRadius: '50%',
+          background: conicStops,
+          WebkitMask: ringMask,
+          mask: ringMask,
+          boxShadow: '0 6px 22px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04)',
+        }}/>
+
+        {/* Subtle inner rim to separate ring from center disc */}
         <div style={{
           position: 'absolute',
-          left: `${(hueVal / 360) * 100}%`,
-          top: '50%',
-          transform: `translate(-50%, -50%) scale(${dragging ? 1.1 : 1})`,
-          width: 44, height: 64, borderRadius: 22,
-          background: hsbCss(hueVal, puzzle.S, puzzle.B),
-          boxShadow: '0 0 0 3px #141414, 0 0 0 4.5px #fff, 0 6px 16px rgba(0,0,0,0.6)',
+          left: WHEEL / 2 - INNER_R, top: WHEEL / 2 - INNER_R,
+          width: INNER_R * 2, height: INNER_R * 2,
+          borderRadius: '50%',
+          boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.35)',
           pointerEvents: 'none',
+        }}/>
+
+        {/* Center disc — live preview + HUE readout */}
+        <div style={{
+          position: 'absolute',
+          left: WHEEL / 2 - CENTER_R, top: WHEEL / 2 - CENTER_R,
+          width: CENTER_R * 2, height: CENTER_R * 2,
+          borderRadius: '50%',
+          background: centerBg,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.08)',
+          pointerEvents: 'none',
+          transition: 'background-color 80ms linear',
+        }}>
+          <div style={{
+            fontSize: 10, letterSpacing: 2, fontWeight: 700,
+            textTransform: 'uppercase',
+            color: mutedTextColor,
+            marginBottom: 2,
+          }}>Hue</div>
+          <div style={{
+            fontSize: 18, fontWeight: 700, letterSpacing: 1,
+            fontVariantNumeric: 'tabular-nums',
+            color: textColor,
+            whiteSpace: 'nowrap',
+          }}>{Math.round(hueVal)}°</div>
+        </div>
+
+        {/* Thumb */}
+        <div style={{
+          position: 'absolute',
+          left: thumbX - THUMB_SIZE / 2,
+          top:  thumbY - THUMB_SIZE / 2,
+          width: THUMB_SIZE, height: THUMB_SIZE,
+          borderRadius: '50%',
+          background: centerBg,
+          border: '3px solid #fff',
+          boxShadow: '0 0 0 2px rgba(0,0,0,0.55), 0 6px 14px rgba(0,0,0,0.55)',
+          transform: `scale(${dragging ? 1.1 : 1})`,
           transition: 'transform 120ms ease',
+          pointerEvents: 'none',
         }}/>
       </div>
     </div>
@@ -1291,7 +1381,7 @@ function App() {
           )}
         </div>
 
-        <HorizontalPicker
+        <WheelPicker
           hueVal={pickerHue}
           puzzle={puzzle}
           onChange={onPickerChange}
