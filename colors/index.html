@@ -22,6 +22,38 @@
   }
   #root { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
   button { -webkit-user-select: none; user-select: none; font-family: inherit; }
+
+  @keyframes hueday-theme-fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0);   }
+  }
+  .theme-reveal {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 2px; margin-bottom: 4px;
+    animation: hueday-theme-fade-in 700ms ease both;
+    animation-delay: 120ms;
+  }
+  .theme-label {
+    font-size: 9.5px; color: #7a7a7a; letter-spacing: 2.5px;
+    text-transform: uppercase; font-weight: 600;
+  }
+  .theme-name {
+    font-size: 17px; color: #ededed; font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .theme-desc {
+    font-size: 11px; color: #cfcfcf; font-style: italic;
+    letter-spacing: 0.2px; text-align: center; max-width: 280px;
+    line-height: 1.4;
+  }
+
+  @keyframes hueday-pill-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.35); }
+    50%      { box-shadow: 0 0 0 6px rgba(250, 204, 21, 0.00); }
+  }
+  .practice-pill {
+    animation: hueday-pill-pulse 1800ms ease-in-out infinite;
+  }
 </style>
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
@@ -37,9 +69,10 @@
 // Implements spec §2 (puzzle generator), §3 (feedback), §5 (state),
 // §6 (input), §7 (visuals, feedback rendering), §8 (midnight rollover).
 //
-// This is a prototype, not production. Haptics and audio chime are
-// web-approximated (Vibration API when available; short AudioContext
-// beep on completion).
+// v1.1 adds:
+//   • Daily Themes (weekday-biased hue palettes + reveal screen)
+//   • Practice Mode (unlimited re-attempts of today's puzzle)
+//   • Copy Last Guess button
 // ═══════════════════════════════════════════════════════════════════
 
 const HD_BG      = '#141414';
@@ -54,7 +87,81 @@ const HD_GREY    = '#6b7280';
 
 const HD_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
-const STORAGE_KEY = 'hueday-mini-state-v1';
+const STORAGE_KEY          = 'hueday-mini-state-v1';
+const PRACTICE_BEST_KEY    = 'hueday-practice-best';
+
+// ────────────────────────────────────────────────────────────────────
+// Daily themes (Feature 1)
+// One theme per weekday (Sun=0 … Sat=6).  Each theme contributes a
+// set of hue arcs [startDeg, endDeg] (wrap-aware — end may be < start).
+// ────────────────────────────────────────────────────────────────────
+const THEMES = [
+  { // Sunday
+    name: 'Sunset',
+    description: 'Warm hues shifting to cool dusk tones',
+    hueRanges: [[340, 60], [250, 320]], // red-orange-yellow + violet-magenta
+  },
+  { // Monday
+    name: 'Ocean',
+    description: 'Deep blues into emerald shallows',
+    hueRanges: [[160, 260]],
+  },
+  { // Tuesday
+    name: 'Desert Dust',
+    description: 'Sun-baked ochres, amber and clay',
+    hueRanges: [[15, 55]],
+  },
+  { // Wednesday
+    name: 'Forest',
+    description: 'Moss, pine, and leaf-green shadow',
+    hueRanges: [[70, 160]],
+  },
+  { // Thursday
+    name: 'Twilight',
+    description: 'Violet sky and magenta haze',
+    hueRanges: [[260, 340]],
+  },
+  { // Friday
+    name: 'Neon Night',
+    description: 'Saturated high-contrast cyber hues',
+    hueRanges: [[0, 360]],
+  },
+  { // Saturday
+    name: 'Garden',
+    description: 'Soft petals in bloom: rose, pollen, leaf',
+    hueRanges: [[280, 360], [40, 130]],
+  },
+];
+
+function themeForDate(dateStr) {
+  const weekday = new Date(dateStr + 'T12:00:00').getDay();
+  return THEMES[weekday];
+}
+
+// Arc length of a single [start, end] range, wrap-aware.
+// A full wheel [0, 360] → 360. [340, 60] → 80.
+function arcLength(range) {
+  const [a, b] = range;
+  const span = ((b - a) % 360 + 360) % 360;
+  return span === 0 ? 360 : span;
+}
+// Sample a hue that lies `u` fraction into a single arc.
+function hueAtArcFraction(range, u) {
+  const [a] = range;
+  const len = arcLength(range);
+  return ((a + u * len) % 360 + 360) % 360;
+}
+// Map u∈[0,1) proportionally across a list of arcs (by arc length).
+function hueFromRanges(ranges, u) {
+  const lens = ranges.map(arcLength);
+  const total = lens.reduce((s, x) => s + x, 0);
+  let target = u * total;
+  for (let i = 0; i < ranges.length; i++) {
+    if (target < lens[i]) return hueAtArcFraction(ranges[i], target / lens[i]);
+    target -= lens[i];
+  }
+  return hueAtArcFraction(ranges[ranges.length - 1], 0.999);
+}
 
 // ────────────────────────────────────────────────────────────────────
 // HSB → sRGB rendering (matches SwiftUI's Color(hue:sat:bright:))
@@ -113,13 +220,24 @@ function localDateString(d = new Date()) {
   return `${y}-${m}-${day}`;
 }
 
-// puzzleForDate(date) → {S, B, hues: [6]} — spec §2
-function puzzleForDate(dateStr) {
-  let state = fnv1a64(dateStr);
+// Wrap-aware minimum adjacent gap when hues are sorted on the circle.
+function minAdjacentGap(hues) {
+  const sorted = hues.slice().sort((a, b) => a - b);
+  let minGap = Infinity;
+  for (let i = 0; i < sorted.length; i++) {
+    const a = sorted[i];
+    const b = sorted[(i + 1) % sorted.length];
+    const gap = i === sorted.length - 1 ? ((360 - a) + b) : (b - a);
+    if (gap < minGap) minGap = gap;
+  }
+  return minGap;
+}
+
+// Original uniform generator, preserved as the guaranteed-safe fallback.
+function uniformPuzzleHues(stateIn) {
+  let state = stateIn;
   let u;
-  [state, u] = nextUniform(state); const S = 0.60 + u * 0.15;   // spec §2.5
-  [state, u] = nextUniform(state); const B = 0.48 + u * 0.10;   // spec §2.5
-  [state, u] = nextUniform(state); const alpha = u * 60;        // spec §2.6
+  [state, u] = nextUniform(state); const alpha = u * 60;
   const hues = [];
   for (let i = 0; i < 6; i++) {
     [state, u] = nextUniform(state);
@@ -128,7 +246,78 @@ function puzzleForDate(dateStr) {
     h = ((h % 360) + 360) % 360;
     hues.push(h);
   }
-  return { S, B, hues };
+  return { state, hues };
+}
+
+// Expand narrow theme arcs so 6 hues with ≥20° separation fit.
+// 6 slots × 20° = 120° absolute minimum — we pad to 150° for breathing room.
+// We widen each arc outward from its center proportionally to the shortage.
+function widenRangesForSeparation(ranges, minTotalArc) {
+  const total = ranges.reduce((s, r) => s + arcLength(r), 0);
+  if (total >= minTotalArc) return ranges;
+  const scale = minTotalArc / total;
+  return ranges.map(([a, b]) => {
+    const len = arcLength([a, b]);
+    const center = ((a + len / 2) % 360 + 360) % 360;
+    const newLen = len * scale;
+    const newA = ((center - newLen / 2) % 360 + 360) % 360;
+    const newB = ((center + newLen / 2) % 360 + 360) % 360;
+    return [newA, newB];
+  });
+}
+
+// puzzleForDate(date) → {S, B, hues: [6], theme} — spec §2 + theme bias
+function puzzleForDate(dateStr) {
+  const theme = themeForDate(dateStr);
+  let state = fnv1a64(dateStr);
+  let u;
+  [state, u] = nextUniform(state); const S = 0.60 + u * 0.15;   // spec §2.5
+  [state, u] = nextUniform(state); const B = 0.48 + u * 0.10;   // spec §2.5
+
+  const MIN_GAP = 20;
+  const JITTER  = 5; // ±5°
+
+  // Make sure the theme covers enough arc to fit 6 hues with the
+  // required separation plus a small margin. 6 × (MIN_GAP + 2·JITTER)
+  // = 6 × 30° = 180° is the safe floor: at that width, even worst-case
+  // jitter can't push adjacent stratified draws below MIN_GAP.
+  const MIN_TOTAL_ARC = 6 * (MIN_GAP + 2 * JITTER);
+  const effectiveRanges = widenRangesForSeparation(theme.hueRanges, MIN_TOTAL_ARC);
+
+  // We keep advancing the seed deterministically — each attempt burns
+  // a fresh batch of uniforms so a retry looks like "the next draw",
+  // not a re-draw of the same numbers.
+  let hues = null;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const candidate = [];
+    // Stratify u across [0,1) so the 6 slots spread through the
+    // combined theme arcs evenly (plus jitter). This cheaply
+    // preserves separation when the theme is wide.
+    for (let i = 0; i < 6; i++) {
+      let uh;
+      [state, uh] = nextUniform(state);
+      const strat = (i + uh) / 6; // stratified ∈ [i/6, (i+1)/6)
+      let h = hueFromRanges(effectiveRanges, strat);
+
+      let uj;
+      [state, uj] = nextUniform(state);
+      const jitter = (uj * 2 - 1) * JITTER;
+      h = ((h + jitter) % 360 + 360) % 360;
+      candidate.push(h);
+    }
+    if (minAdjacentGap(candidate) >= MIN_GAP) { hues = candidate; break; }
+    // Perturb & retry — consume more state on next loop iteration.
+  }
+
+  if (!hues) {
+    // Fallback: original uniform generator, which is guaranteed safe
+    // by construction (α + 60·i ± 15 spacing ⇒ min gap ≥ 30°).
+    const r = uniformPuzzleHues(state);
+    state = r.state;
+    hues = r.hues;
+  }
+
+  return { S, B, hues, theme };
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -203,6 +392,8 @@ function chime() {
 
 // ────────────────────────────────────────────────────────────────────
 // Local-storage persistence (spec §5.2)
+// Practice best-solve stat is tracked separately so the daily save
+// format stays compatible with prior versions.
 // ────────────────────────────────────────────────────────────────────
 function loadState() {
   try {
@@ -214,23 +405,50 @@ function loadState() {
 function saveState(s) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch (_) {}
 }
+function loadPracticeBest() {
+  try {
+    const raw = localStorage.getItem(PRACTICE_BEST_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (_) { return null; }
+}
+function savePracticeBest(dateStr, attempts) {
+  try {
+    const prev = loadPracticeBest();
+    if (prev && prev.dateStr === dateStr && prev.attempts <= attempts) return prev;
+    const next = { dateStr, attempts };
+    localStorage.setItem(PRACTICE_BEST_KEY, JSON.stringify(next));
+    return next;
+  } catch (_) { return null; }
+}
 
 // ────────────────────────────────────────────────────────────────────
 // Visual primitives
 // ────────────────────────────────────────────────────────────────────
-function TitleBar({ dateStr, onTitleTap }) {
+function TitleBar({ dateStr, practiceMode }) {
   const display = dateStr ? new Date(dateStr + 'T12:00:00').toLocaleDateString(undefined, {
     weekday: 'long', month: 'long', day: 'numeric',
   }) : '';
   return (
-    <div style={{ paddingTop: 18, paddingBottom: 14, textAlign: 'center' }}>
-      <div onClick={onTitleTap} style={{
+    <div style={{ paddingTop: 18, paddingBottom: 14, textAlign: 'center', position: 'relative' }}>
+      <div style={{
         fontSize: 13, fontWeight: 600, letterSpacing: 3,
         color: HD_TEXT, textTransform: 'uppercase', cursor: 'default',
       }}>Hueday <span style={{ color: HD_MUTED, fontSize: 10 }}>mini</span></div>
       <div style={{
         fontSize: 11, color: HD_MUTED, marginTop: 3, letterSpacing: 0.2,
       }}>{display}</div>
+      {practiceMode && (
+        <div className="practice-pill" style={{
+          position: 'absolute', top: 14, right: 14,
+          background: 'rgba(250, 204, 21, 0.12)',
+          color: HD_YELLOW,
+          border: `1px solid ${HD_YELLOW}`,
+          padding: '3px 8px', borderRadius: 999,
+          fontSize: 9, letterSpacing: 1.6, fontWeight: 700,
+          textTransform: 'uppercase',
+        }}>Practice</div>
+      )}
     </div>
   );
 }
@@ -352,6 +570,9 @@ function HowToPlay({ open, onToggle }) {
           <p style={{ margin: '10px 0 0', color: HD_MUTED, fontSize: 10, lineHeight: 1.45 }}>
             Hints are within <b>8°</b> on the color wheel. Get all six green in 6 tries to win.
           </p>
+          <p style={{ margin: '8px 0 0', color: HD_MUTED, fontSize: 10, lineHeight: 1.45, fontStyle: 'italic' }}>
+            Today's puzzle has a <b>theme</b> — revealed at the end.
+          </p>
         </div>
       )}
     </div>
@@ -422,6 +643,17 @@ function TargetRow({ puzzle, guesses, showDeg, fading }) {
   );
 }
 
+function ThemeReveal({ theme }) {
+  if (!theme) return null;
+  return (
+    <div className="theme-reveal">
+      <div className="theme-label">Today's Theme</div>
+      <div className="theme-name">{theme.name}</div>
+      <div className="theme-desc">{theme.description}</div>
+    </div>
+  );
+}
+
 function SubmitButton({ enabled, onClick }) {
   return (
     <button
@@ -437,6 +669,25 @@ function SubmitButton({ enabled, onClick }) {
         textTransform: 'uppercase',
       }}
     >Submit</button>
+  );
+}
+
+// Shared visual style for the two secondary buttons (copy-last / practice).
+const secondaryBtnStyle = {
+  background: 'transparent',
+  border: `1px solid ${HD_BORDER}`,
+  color: HD_TEXT,
+  fontSize: 11, letterSpacing: 1.2, fontWeight: 600,
+  textTransform: 'uppercase',
+  padding: '8px 14px', borderRadius: 10,
+  cursor: 'pointer',
+};
+
+function CopyLastGuessButton({ onClick }) {
+  return (
+    <button onClick={onClick} style={{ ...secondaryBtnStyle, marginTop: 2 }}>
+      <span style={{ fontSize: 12, marginRight: 4 }}>↩</span> Copy Last Guess
+    </button>
   );
 }
 
@@ -529,6 +780,15 @@ function App() {
     try { return localStorage.getItem('hueday-how-to-seen') !== '1'; }
     catch (_) { return true; }
   });
+
+  // ── Practice-mode state (not persisted) ──
+  const [practiceMode, setPracticeMode] = React.useState(false);
+  const [practiceRows, setPracticeRows] = React.useState(makeEmptyRows);
+  const [practiceCurrentRow, setPracticeCurrentRow] = React.useState(0);
+  const [practiceActiveSlot, setPracticeActiveSlot] = React.useState(0);
+  const [practiceState, setPracticeState]           = React.useState('in-progress');
+  const [practiceBest, setPracticeBest]             = React.useState(() => loadPracticeBest());
+
   const toggleHowTo = () => {
     setHowToOpen(v => {
       const next = !v;
@@ -559,7 +819,7 @@ function App() {
     }
   }, []);
 
-  // ── Persist on change ──
+  // ── Persist on change (practice state excluded by design) ──
   React.useEffect(() => {
     saveState({ dateStr, rows, currentRow, activeSlot, state });
   }, [dateStr, rows, currentRow, activeSlot, state]);
@@ -578,6 +838,13 @@ function App() {
         setPickerHue(180);
         setShowDeg(false);
         setFading(false);
+        // Drop any stale practice session at rollover.
+        setPracticeMode(false);
+        setPracticeRows(makeEmptyRows());
+        setPracticeCurrentRow(0);
+        setPracticeActiveSlot(0);
+        setPracticeState('in-progress');
+        setPracticeBest(loadPracticeBest()); // rehydrate (may be for a different date now)
         setToast('New day — puzzle reset.');
         setTimeout(() => setToast(null), 2200);
       }
@@ -594,39 +861,96 @@ function App() {
   }, [dateStr]);
 
   // ── Picker hue tracks the active slot's hue (or default if empty) ──
+  // In practice mode, we follow the practice grid instead.
+  const activeRows     = practiceMode ? practiceRows        : rows;
+  const activeRowIdx   = practiceMode ? practiceCurrentRow  : currentRow;
+  const activeSlotIdx  = practiceMode ? practiceActiveSlot  : activeSlot;
+  const activeState    = practiceMode ? practiceState       : state;
+
   React.useEffect(() => {
-    if (state !== 'in-progress') return;
-    const row = rows[currentRow];
+    if (activeState !== 'in-progress') return;
+    const row = activeRows[activeRowIdx];
     if (!row) return;
-    const slot = row.slots[activeSlot];
+    const slot = row.slots[activeSlotIdx];
     setPickerHue(slot.hue != null ? slot.hue : 180);
-  }, [currentRow, activeSlot, state, rows]);
+  }, [activeRowIdx, activeSlotIdx, activeState, activeRows]);
 
   // ── Handlers ──
   const onPickerChange = (h) => {
-    if (state !== 'in-progress') return;
+    if (activeState !== 'in-progress') return;
     setPickerHue(h);
-    setRows(prev => {
-      const next = prev.map((r, i) => i === currentRow ? {
+    if (practiceMode) {
+      setPracticeRows(prev => prev.map((r, i) => i === practiceCurrentRow ? {
+        ...r,
+        slots: r.slots.map((s, j) => j === practiceActiveSlot ? { ...s, hue: h } : s),
+      } : r));
+    } else {
+      setRows(prev => prev.map((r, i) => i === currentRow ? {
         ...r,
         slots: r.slots.map((s, j) => j === activeSlot ? { ...s, hue: h } : s),
-      } : r);
-      return next;
-    });
+      } : r));
+    }
   };
 
   const onSlotTap = (rIdx, sIdx) => {
-    if (rIdx !== currentRow) return;
-    if (rows[rIdx].submitted) return;
-    setActiveSlot(sIdx);
+    if (practiceMode) {
+      if (rIdx !== practiceCurrentRow) return;
+      if (practiceRows[rIdx].submitted) return;
+      setPracticeActiveSlot(sIdx);
+    } else {
+      if (rIdx !== currentRow) return;
+      if (rows[rIdx].submitted) return;
+      setActiveSlot(sIdx);
+    }
   };
 
-  const currentRowFilled = rows[currentRow]?.slots.every(s => s.hue != null) ?? false;
-  const canSubmit = state === 'in-progress' && currentRowFilled;
+  const currentRowFilled = activeRows[activeRowIdx]?.slots.every(s => s.hue != null) ?? false;
+  const canSubmit = activeState === 'in-progress' && currentRowFilled;
+
+  // Helper: score a row and return the updated row + allGreen flag.
+  const scoreRow = (row) => {
+    const guesses = row.slots.map(s => s.hue);
+    const { feedback: rowFb, dist: rowDist } = feedbackForRow(guesses, puzzle.hues);
+    const scored = row.slots.map((s, j) => ({
+      ...s, feedback: rowFb[j], distance: rowDist[j],
+    }));
+    const allGreen = rowFb.every(f => f === 'green');
+    return { row: { ...row, submitted: true, slots: scored }, allGreen };
+  };
 
   const onSubmit = () => {
     if (!canSubmit) return;
-    // Midnight-on-submit re-check (spec §8.2)
+
+    if (practiceMode) {
+      haptic(20);
+      const { row: scored, allGreen } = scoreRow(practiceRows[practiceCurrentRow]);
+      const nextRows = practiceRows.map((r, i) => i === practiceCurrentRow ? scored : r);
+      setPracticeRows(nextRows);
+      if (allGreen) {
+        setPracticeState('solved');
+        chime();
+        const attempts = practiceCurrentRow + 1;
+        const saved = savePracticeBest(dateStr, attempts);
+        if (saved) setPracticeBest(saved);
+      } else if (practiceCurrentRow >= 5) {
+        // Unlimited tries — auto-reset after a brief pause.
+        setPracticeState('failed');
+        setTimeout(() => {
+          setPracticeRows(makeEmptyRows());
+          setPracticeCurrentRow(0);
+          setPracticeActiveSlot(0);
+          setPracticeState('in-progress');
+          setToast('Practice reset — 6 more tries.');
+          setTimeout(() => setToast(null), 1800);
+        }, 900);
+      } else {
+        setPracticeCurrentRow(practiceCurrentRow + 1);
+        setPracticeActiveSlot(0);
+      }
+      return;
+    }
+
+    // Midnight-on-submit re-check (spec §8.2) — daily path only
     const today = localDateString();
     if (today !== dateStr) {
       setDateStr(today);
@@ -642,25 +966,12 @@ function App() {
     }
 
     haptic(20);
-    const guesses = rows[currentRow].slots.map(s => s.hue);
-    const { feedback: rowFb, dist: rowDist } = feedbackForRow(guesses, puzzle.hues);
-    setRows(prev => {
-      const next = prev.map((r, i) => {
-        if (i !== currentRow) return r;
-        const scored = r.slots.map((s, j) => ({
-          ...s, feedback: rowFb[j], distance: rowDist[j],
-        }));
-        return { ...r, submitted: true, slots: scored };
-      });
-      return next;
-    });
-
-    const allGreen = rowFb.every(f => f === 'green');
+    const { row: scored, allGreen } = scoreRow(rows[currentRow]);
+    setRows(prev => prev.map((r, i) => i === currentRow ? scored : r));
 
     if (allGreen) {
       setState('solved');
       chime();
-      setTimeout(() => { /* target row shows instantly for solve; spec §7 */ }, 0);
     } else if (currentRow >= 5) {
       setState('failed');
       setFading(true);
@@ -672,12 +983,68 @@ function App() {
     }
   };
 
-  const rowsForRender = rows;
-  const done = state !== 'in-progress';
-  const solved = state === 'solved';
-  const lastGuesses = state !== 'in-progress'
-    ? (state === 'solved' ? rows[currentRow].slots.map(s => s.hue) : rows[5].slots.map(s => s.hue))
+  // ── Copy-last-guess (Feature 3) ──
+  const onCopyLastGuess = () => {
+    const cRow = activeRowIdx;
+    if (cRow <= 0) return;
+    const src = activeRows[cRow - 1];
+    if (!src || !src.submitted) return;
+    if (practiceMode) {
+      setPracticeRows(prev => prev.map((r, i) => i === cRow ? {
+        ...r,
+        slots: r.slots.map((s, j) => ({ ...s, hue: src.slots[j].hue })),
+      } : r));
+      setPracticeActiveSlot(0);
+    } else {
+      setRows(prev => prev.map((r, i) => i === cRow ? {
+        ...r,
+        slots: r.slots.map((s, j) => ({ ...s, hue: src.slots[j].hue })),
+      } : r));
+      setActiveSlot(0);
+    }
+    haptic(8);
+  };
+
+  // Show copy button only when there's a submitted previous row in the
+  // active track, the current row is editable, and the game is live.
+  const canCopyLast =
+    activeState === 'in-progress' &&
+    activeRowIdx > 0 &&
+    activeRows[activeRowIdx - 1]?.submitted &&
+    !activeRows[activeRowIdx]?.submitted;
+
+  // ── Practice-mode entry / exit (Feature 2) ──
+  const enterPractice = () => {
+    setPracticeRows(makeEmptyRows());
+    setPracticeCurrentRow(0);
+    setPracticeActiveSlot(0);
+    setPracticeState('in-progress');
+    setPracticeMode(true);
+    setPickerHue(180);
+  };
+  const exitPractice = () => {
+    setPracticeMode(false);
+    setPracticeRows(makeEmptyRows());
+    setPracticeCurrentRow(0);
+    setPracticeActiveSlot(0);
+    setPracticeState('in-progress');
+  };
+  const resetPractice = () => {
+    setPracticeRows(makeEmptyRows());
+    setPracticeCurrentRow(0);
+    setPracticeActiveSlot(0);
+    setPracticeState('in-progress');
+  };
+
+  const done = activeState !== 'in-progress';
+  const solved = activeState === 'solved';
+  const lastGuesses = done
+    ? (solved
+        ? activeRows[activeRowIdx].slots.map(s => s.hue)
+        : activeRows[5].slots.map(s => s.hue))
     : null;
+
+  const practiceBestForToday = practiceBest && practiceBest.dateStr === dateStr ? practiceBest : null;
 
   return (
     <div style={{
@@ -692,39 +1059,72 @@ function App() {
       boxSizing: 'border-box',
       position: 'relative',
     }}>
-      <TitleBar dateStr={dateStr} />
+      <TitleBar dateStr={dateStr} practiceMode={practiceMode} />
 
       <HowToPlay open={howToOpen} onToggle={toggleHowTo} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '4px 18px 0', minHeight: 0 }}>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 14 }}>
           <GuessGrid
-            rows={rowsForRender}
+            rows={activeRows}
             puzzle={puzzle}
-            currentRow={currentRow}
-            activeSlotIdx={activeSlot}
+            currentRow={activeRowIdx}
+            activeSlotIdx={activeSlotIdx}
             onSlotTap={onSlotTap}
             swatchSize={46}
             rowGap={7}
             colGap={7}
           />
 
+          {canCopyLast && (
+            <CopyLastGuessButton onClick={onCopyLastGuess} />
+          )}
+
           {done && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginTop: 6 }}>
+              <ThemeReveal theme={puzzle.theme} />
               <TargetRow puzzle={puzzle} guesses={lastGuesses} showDeg={showDeg} fading={fading && !solved} />
               <div style={{ marginTop: showDeg ? 18 : 6, fontSize: 11, color: HD_TEXT, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 600 }}>
-                {solved ? `Solved in ${currentRow + 1}` : 'Out of guesses'}
+                {practiceMode
+                  ? (solved ? `Practice solved in ${practiceCurrentRow + 1}` : 'Practice round — resetting…')
+                  : (solved ? `Solved in ${currentRow + 1}` : 'Out of guesses')}
               </div>
-              <button
-                onClick={() => setShowDeg(v => !v)}
-                style={{
-                  background: 'transparent', border: 'none',
-                  color: HD_MUTED, fontSize: 11, letterSpacing: 0.8,
-                  textTransform: 'uppercase', cursor: 'pointer',
-                  padding: '4px 8px',
-                }}
-              >{showDeg ? 'hide degrees' : 'show degrees'}</button>
+
+              {practiceBestForToday && (
+                <div style={{ fontSize: 10, color: HD_MUTED, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                  Best practice solve: {practiceBestForToday.attempts}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                <button
+                  onClick={() => setShowDeg(v => !v)}
+                  style={{
+                    background: 'transparent', border: 'none',
+                    color: HD_MUTED, fontSize: 11, letterSpacing: 0.8,
+                    textTransform: 'uppercase', cursor: 'pointer',
+                    padding: '4px 8px',
+                  }}
+                >{showDeg ? 'hide degrees' : 'show degrees'}</button>
+
+                {practiceMode ? (
+                  <>
+                    <button onClick={resetPractice} style={secondaryBtnStyle}>Play Again</button>
+                    <button onClick={exitPractice} style={secondaryBtnStyle}>Exit Practice</button>
+                  </>
+                ) : (
+                  <button onClick={enterPractice} style={secondaryBtnStyle}>Practice This Puzzle</button>
+                )}
+              </div>
             </div>
+          )}
+
+          {/* Non-done practice mode still offers an exit control */}
+          {!done && practiceMode && (
+            <button
+              onClick={exitPractice}
+              style={{ ...secondaryBtnStyle, marginTop: 4 }}
+            >Exit Practice</button>
           )}
         </div>
 
