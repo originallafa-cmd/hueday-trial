@@ -537,7 +537,7 @@ function LegendRow({ color, label, text, arrow }) {
     </div>
   );
 }
-function HowToPlay({ open, onToggle }) {
+function HowToPlay({ open, onToggle, onReset }) {
   return (
     <div style={{
       margin: '0 18px 10px',
@@ -580,6 +580,24 @@ function HowToPlay({ open, onToggle }) {
           <p style={{ margin: '8px 0 0', color: HD_MUTED, fontSize: 10, lineHeight: 1.45, fontStyle: 'italic' }}>
             Today's puzzle has a <b>theme</b> — revealed at the end.
           </p>
+          <div style={{
+            marginTop: 12, paddingTop: 10,
+            borderTop: '1px solid ' + HD_BORDER,
+            display: 'flex', justifyContent: 'center',
+          }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); onReset && onReset(); }}
+              style={{
+                background: 'transparent',
+                border: '1px solid ' + HD_BORDER,
+                color: HD_MUTED,
+                fontSize: 10, fontWeight: 600, letterSpacing: 1.5,
+                textTransform: 'uppercase',
+                padding: '6px 14px', borderRadius: 8,
+                cursor: 'pointer', fontFamily: HD_FONT,
+              }}
+            >Reset today's progress</button>
+          </div>
         </div>
       )}
     </div>
@@ -1166,7 +1184,14 @@ function App() {
     }}>
       <TitleBar dateStr={dateStr} practiceMode={practiceMode} />
 
-      <HowToPlay open={howToOpen} onToggle={toggleHowTo} />
+      <HowToPlay open={howToOpen} onToggle={toggleHowTo} onReset={() => {
+        if (!window.confirm("Reset today's puzzle? This wipes your attempts for today — the puzzle stays the same.")) return;
+        try {
+          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(PRACTICE_BEST_KEY);
+        } catch (_) {}
+        window.location.reload();
+      }} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '4px 18px 0', minHeight: 0 }}>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 14 }}>
