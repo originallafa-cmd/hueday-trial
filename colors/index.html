@@ -739,6 +739,25 @@ function HorizontalPicker({ hueVal, puzzle, onChange, onCommit, disabled }) {
           touchAction: 'none', cursor: 'pointer',
         }}
       >
+        {/* Floating live hue readout — appears only while dragging */}
+        <div style={{
+          position: 'absolute',
+          left: `${(hueVal / 360) * 100}%`,
+          top: -18,
+          transform: 'translateX(-50%)',
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: 0.6,
+          color: HD_TEXT,
+          background: 'rgba(0,0,0,0.55)',
+          padding: '2px 8px',
+          borderRadius: 10,
+          fontVariantNumeric: 'tabular-nums',
+          pointerEvents: 'none',
+          opacity: dragging ? 1 : 0,
+          transition: 'opacity 120ms ease',
+          whiteSpace: 'nowrap',
+        }}>h {Math.round(hueVal)}°</div>
         <div style={{
           position: 'absolute',
           left: `${(hueVal / 360) * 100}%`,
