@@ -96,40 +96,40 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // set of hue arcs [startDeg, endDeg] (wrap-aware — end may be < start).
 // ────────────────────────────────────────────────────────────────────
 const THEMES = [
-  { // Sunday
+  { // Sunday — wraps 320° → 90°, total 130° arc
     name: 'Sunset',
-    description: 'Warm hues shifting to cool dusk tones',
-    hueRanges: [[340, 60], [250, 320]], // red-orange-yellow + violet-magenta
+    description: 'Magenta through red into orange-gold',
+    hueRanges: [[320, 90]],
   },
-  { // Monday
-    name: 'Ocean',
-    description: 'Deep blues into emerald shallows',
-    hueRanges: [[160, 260]],
+  { // Monday — 135° → 265°, total 130°
+    name: 'Oceanic',
+    description: 'Aqua to deep blue to blue-violet',
+    hueRanges: [[135, 265]],
   },
-  { // Tuesday
-    name: 'Desert Dust',
-    description: 'Sun-baked ochres, amber and clay',
-    hueRanges: [[15, 55]],
+  { // Tuesday — wraps 350° → 120°, total 130°
+    name: 'Harvest',
+    description: 'Rose to amber to yellow-gold',
+    hueRanges: [[350, 120]],
   },
-  { // Wednesday
-    name: 'Forest',
-    description: 'Moss, pine, and leaf-green shadow',
-    hueRanges: [[70, 160]],
+  { // Wednesday — 55° → 185°, total 130°
+    name: 'Woodland',
+    description: 'Yellow-green through forest into teal',
+    hueRanges: [[55, 185]],
   },
-  { // Thursday
+  { // Thursday — 220° → 350°, total 130°
     name: 'Twilight',
-    description: 'Violet sky and magenta haze',
-    hueRanges: [[260, 340]],
+    description: 'Blue-violet to deep violet to magenta',
+    hueRanges: [[220, 350]],
   },
-  { // Friday
+  { // Friday — full wheel
     name: 'Neon Night',
-    description: 'Saturated high-contrast cyber hues',
+    description: 'High-contrast saturated hues across the wheel',
     hueRanges: [[0, 360]],
   },
-  { // Saturday
-    name: 'Garden',
-    description: 'Soft petals in bloom: rose, pollen, leaf',
-    hueRanges: [[280, 360], [40, 130]],
+  { // Saturday — wraps 280° → 50°, total 130°
+    name: 'Blossoms',
+    description: 'Rose to pink to red-orange',
+    hueRanges: [[280, 50]],
   },
 ];
 
@@ -274,13 +274,18 @@ function puzzleForDate(dateStr) {
   [state, u] = nextUniform(state); const S = 0.60 + u * 0.15;   // spec §2.5
   [state, u] = nextUniform(state); const B = 0.48 + u * 0.10;   // spec §2.5
 
-  const MIN_GAP = 20;
-  const JITTER  = 5; // ±5°
+  const MIN_GAP = 12;
+  const JITTER  = 7; // ±7°
 
-  // Make sure the theme covers enough arc to fit 6 hues with the
-  // required separation plus a small margin. 6 × (MIN_GAP + 2·JITTER)
-  // = 6 × 30° = 180° is the safe floor: at that width, even worst-case
-  // jitter can't push adjacent stratified draws below MIN_GAP.
+  // Theme arcs are now honest widths (≥130°) so widening should never
+  // fire in practice. We keep widenRangesForSeparation as a safety net:
+  // it only triggers if a theme's total arc is below the safe floor of
+  // 6 × (MIN_GAP + 2·JITTER) = 6 × 26° = 156°. Since all defined themes
+  // are ≥130° and we stratify + reroll up to 20 times with MIN_GAP=12°,
+  // this floor comfortably fits. Arcs of 130° divided into 6 stratified
+  // cells = ~21.7° each; worst-case adjacent gap with ±7° jitter = ~7.7°
+  // which CAN dip below MIN_GAP=12° on an unlucky draw — hence the
+  // 20-attempt reroll. The widener only fires if that genuinely fails.
   const MIN_TOTAL_ARC = 6 * (MIN_GAP + 2 * JITTER);
   const effectiveRanges = widenRangesForSeparation(theme.hueRanges, MIN_TOTAL_ARC);
 
@@ -338,6 +343,10 @@ function feedbackForRow(guesses, targets) {
   const EXACT = 8;
   const feedback = new Array(6).fill(null);
   const dist = new Array(6).fill(null);
+  // matchedDist[t] = angular distance from target t to the guess slot
+  // that claimed it (via same-slot green or cross-slot yellow). Null if
+  // the target was never claimed.
+  const matchedDist = new Array(6).fill(null);
   const claimed = new Array(6).fill(false);
   // Pass 1 — greens: same-slot exact match
   for (let i = 0; i < 6; i++) {
@@ -346,6 +355,7 @@ function feedbackForRow(guesses, targets) {
     if (d <= EXACT) {
       feedback[i] = 'green';
       claimed[i] = true;
+      matchedDist[i] = d;
     }
   }
   // Pass 2 — yellows: cross-slot exact (right color, wrong position).
@@ -361,11 +371,12 @@ function feedbackForRow(guesses, targets) {
     if (bestJ !== -1) {
       feedback[i] = 'yellow';
       claimed[bestJ] = true;
+      matchedDist[bestJ] = bestD;
     }
   }
   // Pass 3 — everything else is grey
   for (let i = 0; i < 6; i++) if (!feedback[i]) feedback[i] = 'grey';
-  return { feedback, dist };
+  return { feedback, dist, matchedDist };
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -604,7 +615,7 @@ function HowToPlay({ open, onToggle, onReset }) {
   );
 }
 
-function GuessGrid({ rows, puzzle, currentRow, activeSlotIdx, onSlotTap, onDragStart, swatchSize, rowGap, colGap }) {
+function GuessGrid({ rows, puzzle, currentRow, activeSlotIdx, onSlotTap, onDragStart, swatchSize, rowGap, colGap, showDeg }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: rowGap, alignItems: 'center' }}>
       {rows.map((row, rIdx) => (
@@ -625,6 +636,8 @@ function GuessGrid({ rows, puzzle, currentRow, activeSlotIdx, onSlotTap, onDragS
                 slotIdx={sIdx}
                 onDragStart={onDragStart}
                 size={swatchSize}
+                showDeg={showDeg && row.submitted}
+                distance={row.submitted ? slot.distance : null}
                 onClick={() => onSlotTap && onSlotTap(rIdx, sIdx)}
               />
             );
@@ -635,7 +648,7 @@ function GuessGrid({ rows, puzzle, currentRow, activeSlotIdx, onSlotTap, onDragS
   );
 }
 
-function TargetRow({ puzzle, guesses, showDeg, fading }) {
+function TargetRow({ puzzle, guesses, matchedDist, showDeg, fading }) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
@@ -648,7 +661,12 @@ function TargetRow({ puzzle, guesses, showDeg, fading }) {
       }}>Target</div>
       <div style={{ display: 'flex', gap: 8 }}>
         {puzzle.hues.map((h, i) => {
-          const dist = guesses ? angularDistance(guesses[i], h) : null;
+          // Prefer the Wordle-matched distance (distance from the guess
+          // slot that claimed this target). Fall back to null for
+          // unclaimed targets — display a dash so the column alignment
+          // stays intact when showDeg is on.
+          const dist = matchedDist ? matchedDist[i]
+                       : (guesses ? angularDistance(guesses[i], h) : null);
           return (
             <div key={i} style={{ position: 'relative' }}>
               <div style={{
@@ -656,12 +674,12 @@ function TargetRow({ puzzle, guesses, showDeg, fading }) {
                 background: hsbCss(h, puzzle.S, puzzle.B),
                 border: '2px solid rgba(255,255,255,0.18)',
               }}/>
-              {showDeg && dist != null && (
+              {showDeg && (
                 <div style={{
                   position: 'absolute', bottom: -17, left: 0, right: 0, textAlign: 'center',
                   fontSize: 9.5, color: HD_MUTED, letterSpacing: 0.3,
                   fontVariantNumeric: 'tabular-nums',
-                }}>{Math.round(dist)}°</div>
+                }}>{dist != null ? `${Math.round(dist)}°` : '—'}</div>
               )}
             </div>
           );
@@ -1168,6 +1186,15 @@ function App() {
         : activeRows[5].slots.map(s => s.hue))
     : null;
 
+  // Option A: compute matchedDist at render time from the last submitted
+  // row's guesses so the target row shows the Wordle-matched distances.
+  // Unclaimed targets get null (TargetRow renders a dash for those).
+  const lastMatchedDist = React.useMemo(() => {
+    if (!lastGuesses) return null;
+    const { matchedDist } = feedbackForRow(lastGuesses, puzzle.hues);
+    return matchedDist;
+  }, [lastGuesses, puzzle.hues]);
+
   const practiceBestForToday = practiceBest && practiceBest.dateStr === dateStr ? practiceBest : null;
 
   return (
@@ -1204,8 +1231,9 @@ function App() {
             onSlotTap={onSlotTap}
             onDragStart={onSwatchDragStart}
             swatchSize={46}
-            rowGap={7}
+            rowGap={showDeg ? 20 : 7}
             colGap={7}
+            showDeg={showDeg}
           />
 
           {canCopyLast && (
@@ -1215,7 +1243,7 @@ function App() {
           {done && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginTop: 6 }}>
               <ThemeReveal theme={puzzle.theme} />
-              <TargetRow puzzle={puzzle} guesses={lastGuesses} showDeg={showDeg} fading={fading && !solved} />
+              <TargetRow puzzle={puzzle} guesses={lastGuesses} matchedDist={lastMatchedDist} showDeg={showDeg} fading={fading && !solved} />
               <div style={{ marginTop: showDeg ? 18 : 6, fontSize: 11, color: HD_TEXT, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 600 }}>
                 {practiceMode
                   ? (solved ? `Practice solved in ${practiceCurrentRow + 1}` : 'Practice round — resetting…')
@@ -1228,16 +1256,19 @@ function App() {
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
                 <button
                   onClick={() => setShowDeg(v => !v)}
                   style={{
-                    background: 'transparent', border: 'none',
-                    color: HD_MUTED, fontSize: 11, letterSpacing: 0.8,
-                    textTransform: 'uppercase', cursor: 'pointer',
-                    padding: '4px 8px',
+                    background: HD_SURFACE,
+                    border: `1px solid ${HD_BORDER}`,
+                    color: HD_TEXT,
+                    fontSize: 11, letterSpacing: 1.2, fontWeight: 600,
+                    textTransform: 'uppercase',
+                    padding: '8px 14px', borderRadius: 10,
+                    cursor: 'pointer',
                   }}
-                >{showDeg ? 'hide degrees' : 'show degrees'}</button>
+                >{showDeg ? 'Hide Degrees' : 'Show Degrees'}</button>
 
                 {practiceMode ? (
                   <>
