@@ -133,7 +133,28 @@ const THEMES = [
   },
 ];
 
+// One-off themed palettes that override the weekday default for a
+// specific date. Each hueRanges entry is a 6-zone palette, one zone per
+// target slot (well-separated centers), so stratified sampling lands one
+// hue in each zone. Useful for seasonal, pop-culture, or guest themes.
+const FEATURED_OVERRIDES = {
+  '2026-04-22': {
+    name: 'Friends',
+    description: 'Central Perk orange, Monica purple, 90s teal & more',
+    hueRanges: [
+      [350,  15],   // slot 1 — burgundy / Thanksgiving red
+      [ 20,  50],   // slot 2 — Central Perk orange
+      [ 50,  70],   // slot 3 — cream / lamp yellow
+      [130, 155],   // slot 4 — pine / Christmas green
+      [170, 195],   // slot 5 — Rachel bathroom teal
+      [260, 285],   // slot 6 — Monica's purple walls
+    ],
+  },
+};
+
 function themeForDate(dateStr) {
+  const override = FEATURED_OVERRIDES[dateStr];
+  if (override) return override;
   const weekday = new Date(dateStr + 'T12:00:00').getDay();
   return THEMES[weekday];
 }
@@ -308,6 +329,9 @@ function puzzleForDate(dateStr) {
       [state, uj] = nextUniform(state);
       const jitter = (uj * 2 - 1) * JITTER;
       h = ((h + jitter) % 360 + 360) % 360;
+      // Round to integer degrees so the player always sees clean whole numbers.
+      h = Math.round(h);
+      if (h === 360) h = 0;
       candidate.push(h);
     }
     if (minAdjacentGap(candidate) >= MIN_GAP) { hues = candidate; break; }
