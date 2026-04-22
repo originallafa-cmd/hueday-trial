@@ -70,6 +70,46 @@
     animation: hueday-pill-pulse 1800ms ease-in-out infinite;
   }
 
+  /* First-empty-slot attention pulse (onboarding affordance). */
+  @keyframes hueday-first-slot-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.45); }
+    50%      { box-shadow: 0 0 0 8px rgba(255, 255, 255, 0.00); }
+  }
+  .hueday-slot-pulse {
+    animation: hueday-first-slot-pulse 1400ms ease-in-out infinite;
+  }
+
+  /* Welcome-modal fade-in */
+  @keyframes hueday-welcome-fade {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hueday-welcome-backdrop {
+    position: fixed; inset: 0; z-index: 2000;
+    background: rgba(0, 0, 0, 0.78);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    animation: hueday-welcome-fade 280ms ease both;
+  }
+  .hueday-welcome-card {
+    max-width: 360px; width: 100%;
+    background: #1c1c1c;
+    border: 1px solid #2a2a2a;
+    border-radius: 16px;
+    padding: 22px 22px 18px;
+    color: #ededed;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+  }
+
+  /* Drag-hint beneath the wheel on first load */
+  @keyframes hueday-hint-bob {
+    0%, 100% { transform: translateY(0); opacity: 0.7; }
+    50%      { transform: translateY(-3px); opacity: 1; }
+  }
+  .hueday-wheel-hint {
+    animation: hueday-hint-bob 1800ms ease-in-out infinite;
+  }
+
   /* Mid-game hint line — fades in once when it first appears. */
   @keyframes hueday-midhint-fade-in {
     from { opacity: 0; transform: translateY(3px); }
@@ -155,7 +195,7 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // discarded and a fresh puzzle is generated. v13 bump is justified:
 // every palette has been renamed and four were re-tuned, so
 // saved.themeName and prior feedback colors would mismatch.
-const GEN_VERSION          = 'v19-png-icon-2026-04-22';
+const GEN_VERSION          = 'v20-welcome-hint-button-2026-04-22';
 const SCORE_HISTORY_KEY    = 'hueday-score-history';
 
 // ────────────────────────────────────────────────────────────────────
@@ -1226,6 +1266,99 @@ function ScoringPanel({ open, onToggle }) {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// Welcome modal — shown on first visit only. Dismiss is sticky via
+// localStorage. Can be re-opened from the HowToPlay panel.
+// ────────────────────────────────────────────────────────────────────
+function WelcomeModal({ onDismiss }) {
+  const Step = ({ n, title, desc }) => (
+    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
+      <div style={{
+        flexShrink: 0, width: 26, height: 26, borderRadius: '50%',
+        background: 'rgba(255,255,255,0.08)', border: '1px solid #2a2a2a',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 12, fontWeight: 700, color: HD_TEXT,
+        fontVariantNumeric: 'tabular-nums',
+      }}>{n}</div>
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: HD_TEXT, marginBottom: 2 }}>{title}</div>
+        <div style={{ fontSize: 12, color: '#cfcfcf', lineHeight: 1.45 }}>{desc}</div>
+      </div>
+    </div>
+  );
+  return (
+    <div className="hueday-welcome-backdrop" onClick={onDismiss}>
+      <div className="hueday-welcome-card" onClick={(e) => e.stopPropagation()}>
+        <div style={{
+          fontSize: 10, letterSpacing: 3, textTransform: 'uppercase',
+          color: HD_MUTED, textAlign: 'center', marginBottom: 4,
+        }}>Welcome to</div>
+        <div style={{
+          fontSize: 22, fontWeight: 800, letterSpacing: 2,
+          color: HD_TEXT, textAlign: 'center', marginBottom: 4,
+        }}>HUEDAY</div>
+        <div style={{
+          fontSize: 11, color: HD_MUTED, textAlign: 'center',
+          fontStyle: 'italic', marginBottom: 18, letterSpacing: 0.3,
+        }}>A daily color puzzle inspired by cinema</div>
+
+        <Step n="1" title="Tap a slot" desc="Pick which of the 6 slots to fill — the active one has a white border." />
+        <Step n="2" title="Drag the color wheel" desc="Slide your finger around the wheel to choose a hue. The center disc shows your live pick." />
+        <Step n="3" title="Submit" desc="Once all 6 slots are filled, tap Submit. Green = exact hit. Yellow = right color, wrong slot. Grey = not today's palette." />
+
+        <div style={{
+          fontSize: 11, color: HD_MUTED, marginTop: 8, marginBottom: 14,
+          lineHeight: 1.5, textAlign: 'center', fontStyle: 'italic',
+        }}>
+          One new puzzle every day. You have 6 guesses.
+        </div>
+
+        <button
+          onClick={onDismiss}
+          style={{
+            width: '100%', padding: '12px 16px',
+            background: '#fafafa', color: '#0e0e0e',
+            border: 'none', borderRadius: 10,
+            fontSize: 13, fontWeight: 700, letterSpacing: 1,
+            textTransform: 'uppercase', cursor: 'pointer',
+            fontFamily: HD_FONT,
+          }}
+        >Got it — let's play</button>
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Inline hint button — visible on the main page so new players can find
+// the Show-Degrees toggle without digging into the How-to-Play panel.
+// ────────────────────────────────────────────────────────────────────
+function InlineHintButton({ showDeg, onToggle, disabled }) {
+  const on = !!showDeg;
+  return (
+    <button
+      onClick={disabled ? undefined : onToggle}
+      disabled={disabled}
+      title={on ? 'Hide distances (score stays halved)' : 'Show distances (−50% score)'}
+      style={{
+        background: on ? 'rgba(245,158,66,0.14)' : 'rgba(255,255,255,0.04)',
+        border: '1px solid ' + (on ? '#f59e42' : HD_BORDER),
+        color: on ? '#f59e42' : HD_MUTED,
+        fontSize: 10, fontWeight: 700, letterSpacing: 1.2,
+        textTransform: 'uppercase',
+        padding: '8px 10px', borderRadius: 10,
+        cursor: disabled ? 'default' : 'pointer',
+        opacity: disabled ? 0.4 : 1,
+        fontFamily: HD_FONT, whiteSpace: 'nowrap',
+        display: 'flex', alignItems: 'center', gap: 5,
+      }}
+    >
+      <span style={{ fontSize: 12 }}>💡</span>
+      <span>{on ? 'Hint · On' : 'Hint'}</span>
+    </button>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────
 // FAQ panel (Change 4) — collapsible, closed by default.
 // ────────────────────────────────────────────────────────────────────
 function FAQPanel({ open, onToggle }) {
@@ -2260,6 +2393,15 @@ function App() {
   const [scoringOpen, setScoringOpen] = React.useState(false);
   const [faqOpen, setFaqOpen]         = React.useState(false);
   const [archiveOpen, setArchiveOpen] = React.useState(false);
+  // Welcome modal — shows on first-ever visit. localStorage flag persists dismissal.
+  const [welcomeOpen, setWelcomeOpen] = React.useState(() => {
+    try { return localStorage.getItem('hueday-welcome-seen') !== '1'; }
+    catch (_) { return true; }
+  });
+  const dismissWelcome = () => {
+    setWelcomeOpen(false);
+    try { localStorage.setItem('hueday-welcome-seen', '1'); } catch (_) {}
+  };
 
   // ── FilmGuess bonus state (Change 3) ──
   // `filmGuessChoice` is the option the player picked (string) or 'skip'.
@@ -3066,8 +3208,15 @@ function App() {
           forbiddenRanges={forbiddenRanges}
         />
 
-        <div style={{ padding: '2px 0 8px' }}>
-          <SubmitButton enabled={canSubmit} onClick={onSubmit} />
+        <div style={{ padding: '2px 0 8px', display: 'flex', gap: 8, alignItems: 'stretch' }}>
+          <InlineHintButton
+            showDeg={showDeg}
+            onToggle={onToggleShowDeg}
+            disabled={done || inPreview}
+          />
+          <div style={{ flex: 1 }}>
+            <SubmitButton enabled={canSubmit} onClick={onSubmit} />
+          </div>
         </div>
 
         <div style={{ textAlign: 'center', fontSize: 10, color: HD_MUTED, letterSpacing: 0.6, padding: '6px 0 2px' }}>
@@ -3109,6 +3258,10 @@ function App() {
           fontSize: 12, letterSpacing: 0.3,
           boxShadow: '0 10px 24px rgba(0,0,0,0.5)',
         }}>{toast}</div>
+      )}
+
+      {welcomeOpen && (
+        <WelcomeModal onDismiss={dismissWelcome} />
       )}
 
       {dragVisual && (
