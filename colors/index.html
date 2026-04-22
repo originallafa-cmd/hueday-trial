@@ -99,7 +99,7 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // Bump this whenever the generator/theme algorithm changes in a way that
 // makes prior saves stale. On load, if saved.genVersion !== GEN_VERSION,
 // the saved state is discarded and a fresh puzzle is generated.
-const GEN_VERSION          = 'v6-category-hint-2026-04-22';
+const GEN_VERSION          = 'v7-wheel-elimination-2026-04-22';
 const SCORE_HISTORY_KEY    = 'hueday-score-history';
 
 // ────────────────────────────────────────────────────────────────────
@@ -1137,7 +1137,48 @@ function CopyLastGuessButton({ onClick }) {
 //   • Conic-gradient ring rendered in HSB via 24 RGB stops
 //   • CSS radial-gradient mask punches out the center hole
 // ────────────────────────────────────────────────────────────────────
-function WheelPicker({ hueVal, puzzle, onChange, onCommit, disabled }) {
+// Build a CSS conic-gradient that dims forbidden arcs on the wheel.
+// Each forbidden range = ±8° around a grey-feedback guess hue — those
+// ranges provably cannot contain any target.
+function buildForbiddenConic(ranges) {
+  if (!ranges || ranges.length === 0) return null;
+  // Normalise; split wrap-arounds into two non-wrapping pieces.
+  const normalized = [];
+  for (const r of ranges) {
+    let start = ((r.start % 360) + 360) % 360;
+    let end   = ((r.end   % 360) + 360) % 360;
+    if (start <= end) normalized.push({ start, end });
+    else { normalized.push({ start: 0, end }); normalized.push({ start, end: 360 }); }
+  }
+  normalized.sort((a, b) => a.start - b.start);
+  // Merge overlapping.
+  const merged = [];
+  for (const r of normalized) {
+    if (merged.length && r.start <= merged[merged.length - 1].end) {
+      merged[merged.length - 1].end = Math.max(merged[merged.length - 1].end, r.end);
+    } else merged.push({ ...r });
+  }
+  const DIM = 'rgba(0,0,0,0.62)';
+  const stops = [];
+  let cursor = 0;
+  const pct = (deg) => (deg / 360 * 100).toFixed(3) + '%';
+  for (const r of merged) {
+    if (r.start > cursor) {
+      stops.push(`transparent ${pct(cursor)}`);
+      stops.push(`transparent ${pct(r.start)}`);
+    }
+    stops.push(`${DIM} ${pct(r.start)}`);
+    stops.push(`${DIM} ${pct(r.end)}`);
+    cursor = r.end;
+  }
+  if (cursor < 360) {
+    stops.push(`transparent ${pct(cursor)}`);
+    stops.push('transparent 100%');
+  }
+  return `conic-gradient(from 0deg at 50% 50%, ${stops.join(', ')})`;
+}
+
+function WheelPicker({ hueVal, puzzle, onChange, onCommit, disabled, forbiddenRanges }) {
   const WHEEL       = 240;
   const OUTER_R     = 120;
   const INNER_R     = 84;
@@ -1238,6 +1279,23 @@ function WheelPicker({ hueVal, puzzle, onChange, onCommit, disabled }) {
           mask: ringMask,
           boxShadow: '0 6px 22px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04)',
         }}/>
+
+        {/* Forbidden-arc overlay — dims hue ranges known not to contain any target */}
+        {(() => {
+          const overlay = buildForbiddenConic(forbiddenRanges);
+          if (!overlay) return null;
+          return (
+            <div style={{
+              position: 'absolute', inset: 0,
+              borderRadius: '50%',
+              background: overlay,
+              WebkitMask: ringMask,
+              mask: ringMask,
+              pointerEvents: 'none',
+              transition: 'opacity 220ms ease',
+            }}/>
+          );
+        })()}
 
         {/* Subtle inner rim to separate ring from center disc */}
         <div style={{
@@ -1788,6 +1846,22 @@ function App() {
 
   const done = activeState !== 'in-progress';
   const solved = activeState === 'solved';
+
+  // Wordle-style elimination: ±8° around each grey-feedback submitted
+  // guess is provably empty of any target. Dim those arcs on the wheel.
+  const forbiddenRanges = React.useMemo(() => {
+    const out = [];
+    for (const row of activeRows) {
+      if (!row.submitted) continue;
+      for (const slot of row.slots) {
+        if (slot.feedback === 'grey' && slot.hue != null) {
+          out.push({ start: slot.hue - 8, end: slot.hue + 8 });
+        }
+      }
+    }
+    return out;
+  }, [activeRows]);
+
   const lastGuesses = done
     ? (solved
         ? activeRows[activeRowIdx].slots.map(s => s.hue)
@@ -1957,6 +2031,7 @@ function App() {
           onChange={onPickerChange}
           onCommit={() => {}}
           disabled={done}
+          forbiddenRanges={forbiddenRanges}
         />
 
         <div style={{ padding: '2px 0 8px' }}>
