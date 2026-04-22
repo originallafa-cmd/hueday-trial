@@ -7,6 +7,10 @@
 <meta name="theme-color" content="#141414" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<!-- Cache-busting: prototype iterates fast; we want fresh HTML every load. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
 <style>
   html, body { margin: 0; padding: 0; height: 100%; }
   html { background: #141414; }
@@ -89,6 +93,11 @@ const HD_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Displ
 
 const STORAGE_KEY          = 'hueday-mini-state-v1';
 const PRACTICE_BEST_KEY    = 'hueday-practice-best';
+
+// Bump this whenever the generator/theme algorithm changes in a way that
+// makes prior saves stale. On load, if saved.genVersion !== GEN_VERSION,
+// the saved state is discarded and a fresh puzzle is generated.
+const GEN_VERSION          = 'v2-rounded-friends-override-2026-04-22';
 
 // ────────────────────────────────────────────────────────────────────
 // Daily themes (Feature 1)
@@ -977,7 +986,7 @@ function App() {
   React.useEffect(() => {
     const saved = loadState();
     const today = localDateString();
-    if (saved && saved.dateStr === today) {
+    if (saved && saved.dateStr === today && saved.genVersion === GEN_VERSION) {
       setDateStr(saved.dateStr);
       setPuzzle(puzzleForDate(today));
       setRows(saved.rows || makeEmptyRows());
@@ -985,6 +994,12 @@ function App() {
       setActiveSlot(saved.activeSlot ?? 0);
       setState(saved.state ?? 'in-progress');
     } else {
+      // Either brand-new player, new day, OR puzzle algorithm was updated
+      // since last save. In the latter case prior rows' feedback colors
+      // were computed against stale targets, so we wipe and start fresh.
+      if (saved && saved.dateStr === today && saved.genVersion !== GEN_VERSION) {
+        try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+      }
       // fresh puzzle for today (also handles first-ever launch)
       setDateStr(today);
       setPuzzle(puzzleForDate(today));
@@ -997,7 +1012,7 @@ function App() {
 
   // ── Persist on change (practice state excluded by design) ──
   React.useEffect(() => {
-    saveState({ dateStr, rows, currentRow, activeSlot, state });
+    saveState({ dateStr, rows, currentRow, activeSlot, state, genVersion: GEN_VERSION });
   }, [dateStr, rows, currentRow, activeSlot, state]);
 
   // ── Midnight rollover via visibility-change (spec §8.1) ──
