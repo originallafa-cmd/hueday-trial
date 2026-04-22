@@ -210,7 +210,7 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // discarded and a fresh puzzle is generated. v13 bump is justified:
 // every palette has been renamed and four were re-tuned, so
 // saved.themeName and prior feedback colors would mismatch.
-const GEN_VERSION          = 'v28-calendar-archive-2026-04-22';
+const GEN_VERSION          = 'v29-calendar-continuous-2026-04-22';
 const SCORE_HISTORY_KEY    = 'hueday-score-history';
 const DISPUTES_KEY         = 'hueday-disputes';
 
@@ -2465,169 +2465,177 @@ function allPastDaysSinceLaunch(todayStr) {
 // newest-first. Tapping an entry sets a negative virtualDateOffset and
 // closes the panel. Does NOT save any state (session-only time-travel).
 // ────────────────────────────────────────────────────────────────────
-// Calendar-grid renderer used inside ArchivePanel. Month-at-a-glance: 7×N
-// grid of day cells, per-day status markers (solved ✓, played —, gold/orange
-// film-bonus pip). Tap a past cell → jump to that day. Today's cell is
-// marked but not clickable (today's game is the main screen). Month nav
-// bounds are LAUNCH_DATE ↔ todayStr.
+// iOS-Calendar-style archive: month labels inline, continuous 7-col grid,
+// tight rows separated by thin horizontal rules (no per-cell borders).
+// Today = solid filled circle around the day number. Puzzle #N under each
+// day. Past played = green dot pip. Future/pre-launch = dimmed, inactive.
+// All months from LAUNCH_DATE → todayStr render stacked and scrollable.
 function CalendarArchive({ entries, scoreHistory, todayStr, onSelectDate, onRandomJump }) {
-  const entriesByDate = React.useMemo(() => {
-    const map = {};
-    entries.forEach(e => { map[e.dateStr] = e; });
-    return map;
-  }, [entries]);
-
-  const [y0, m0] = todayStr.split('-').map(Number);
-  const [viewY, setViewY] = React.useState(y0);
-  const [viewM, setViewM] = React.useState(m0); // 1..12
-  const viewKey = viewY + '-' + String(viewM).padStart(2, '0');
-
-  const launchYM = LAUNCH_DATE.slice(0, 7);
-  const todayYM  = todayStr.slice(0, 7);
-  const canPrev = viewKey > launchYM;
-  const canNext = viewKey < todayYM;
-
-  const stepMonth = (delta) => {
-    let y = viewY, m = viewM + delta;
-    if (m < 1) { m = 12; y--; }
-    if (m > 12) { m = 1; y++; }
-    setViewY(y); setViewM(m);
-  };
-
-  // Build the 7-col grid. JS Date.getDay(): 0=Sun..6=Sat. Remap to 0=Mon..6=Sun.
-  const firstDow = new Date(viewY, viewM - 1, 1).getDay();
-  const firstMonIdx = (firstDow + 6) % 7;
-  const daysInMonth = new Date(viewY, viewM, 0).getDate();
-
-  const cells = [];
-  for (let i = 0; i < firstMonIdx; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) {
-    cells.push(viewY + '-' + String(viewM).padStart(2, '0') + '-' + String(d).padStart(2, '0'));
-  }
-  while (cells.length % 7 !== 0) cells.push(null);
-
-  const monthLabel = new Date(viewY, viewM - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const wasSolvedOf = (h) => typeof h.solved === 'boolean' ? h.solved : (typeof h.score === 'number' && h.score > 0);
+  const ymd = (y, m, d) => y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
   const dowHeaders = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-  const wasSolvedOf = (h) => typeof h.solved === 'boolean' ? h.solved : (typeof h.score === 'number' && h.score > 0);
+  // Compute the list of (year, month) pairs from LAUNCH month to today's month.
+  const months = React.useMemo(() => {
+    const out = [];
+    const [ly, lm] = LAUNCH_DATE.split('-').map(Number);
+    const [ty, tm] = todayStr.split('-').map(Number);
+    let y = ly, m = lm;
+    while (y < ty || (y === ty && m <= tm)) {
+      out.push({ y, m });
+      m++;
+      if (m > 12) { m = 1; y++; }
+    }
+    return out;
+  }, [todayStr]);
+
+  // One row of 7 day-cells. Extracted to keep the render readable.
+  const Row = ({ cells }) => (
+    <div style={{
+      display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)',
+      borderTop: '1px solid ' + HD_BORDER,
+    }}>
+      {cells.map(({ ds, dayNum, isBlank }, ci) => {
+        if (isBlank) {
+          return <div key={'b' + ci} style={{ aspectRatio: '1 / 1.15' }} />;
+        }
+        const isToday = ds === todayStr;
+        const isFuture = ds > todayStr;
+        const isPreLaunch = ds < LAUNCH_DATE;
+        const interactive = !isToday && !isFuture && !isPreLaunch;
+        const hist = scoreHistory[ds] || null;
+        const wasSolved = hist ? wasSolvedOf(hist) : false;
+        const pNum = puzzleNumberFor(ds);
+        const markerColor = wasSolved ? '#22c55e' : null;
+        const bonusPip = hist && hist.filmBonus === true;
+        return (
+          <button
+            key={ds}
+            onClick={interactive ? () => onSelectDate(ds) : undefined}
+            disabled={!interactive}
+            aria-label={isToday ? 'Today (current puzzle)' : (interactive ? 'Open puzzle for ' + ds + (wasSolved ? ', solved' : (hist ? ', played' : ', not yet played')) : 'Unavailable')}
+            style={{
+              aspectRatio: '1 / 1.15',
+              background: 'transparent',
+              border: 'none',
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'stretch', justifyContent: 'flex-start',
+              padding: '6px 4px 4px',
+              color: (isFuture || isPreLaunch) ? HD_DASHED : HD_TEXT,
+              fontFamily: HD_FONT,
+              cursor: interactive ? 'pointer' : 'default',
+              opacity: (isFuture || isPreLaunch) ? 0.28 : 1,
+              position: 'relative',
+            }}
+          >
+            {/* Day number — today gets a solid filled circle around it */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{
+                width: 28, height: 28, borderRadius: '50%',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: isToday ? '#22c55e' : 'transparent',
+                color: isToday ? '#0e0e0e' : 'inherit',
+                fontWeight: 700, fontSize: 15, lineHeight: 1,
+                fontVariantNumeric: 'tabular-nums',
+              }}>{dayNum}</div>
+            </div>
+            {/* Sub-line — puzzle #N (very muted) */}
+            <div style={{
+              textAlign: 'center',
+              fontSize: 9, lineHeight: 1.1, marginTop: 2,
+              color: isToday ? HD_MUTED : HD_MUTED,
+              fontVariantNumeric: 'tabular-nums',
+              opacity: (isFuture || isPreLaunch) ? 0.6 : 1,
+            }}>{pNum >= 1 ? '#' + pNum : ''}</div>
+            {/* Status pips */}
+            <div style={{
+              display: 'flex', gap: 3, alignItems: 'center', justifyContent: 'center',
+              minHeight: 6, marginTop: 2,
+            }}>
+              {markerColor && (
+                <span style={{
+                  width: 5, height: 5, borderRadius: '50%',
+                  background: markerColor, display: 'inline-block',
+                }}/>
+              )}
+              {bonusPip && (
+                <span style={{
+                  width: 4, height: 4, borderRadius: '50%',
+                  background: '#fbbf24', display: 'inline-block',
+                }}/>
+              )}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
 
   return (
-    <div style={{ padding: '10px 12px 14px' }}>
-      {/* Month nav */}
+    <div style={{ padding: '6px 4px 10px' }}>
+      {/* Day-of-week header row — shown once at top, iOS-style */}
       <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 10,
+        display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)',
+        padding: '2px 0 6px',
       }}>
-        <button
-          onClick={() => canPrev && stepMonth(-1)}
-          disabled={!canPrev}
-          aria-label="Previous month"
-          style={{
-            background: 'transparent', border: '1px solid ' + HD_BORDER,
-            color: canPrev ? HD_TEXT : HD_DASHED,
-            borderRadius: 8, padding: '6px 10px',
-            fontSize: 13, cursor: canPrev ? 'pointer' : 'default',
-            opacity: canPrev ? 1 : 0.4,
-          }}
-        >◀</button>
-        <div style={{
-          fontSize: 11, fontWeight: 700, letterSpacing: 2.2,
-          textTransform: 'uppercase', color: HD_TEXT,
-        }}>{monthLabel}</div>
-        <button
-          onClick={() => canNext && stepMonth(1)}
-          disabled={!canNext}
-          aria-label="Next month"
-          style={{
-            background: 'transparent', border: '1px solid ' + HD_BORDER,
-            color: canNext ? HD_TEXT : HD_DASHED,
-            borderRadius: 8, padding: '6px 10px',
-            fontSize: 13, cursor: canNext ? 'pointer' : 'default',
-            opacity: canNext ? 1 : 0.4,
-          }}
-        >▶</button>
-      </div>
-
-      {/* Day-of-week header row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 6 }}>
         {dowHeaders.map((d, i) => (
           <div key={i} style={{
-            fontSize: 9, fontWeight: 700, letterSpacing: 1.2,
-            color: HD_MUTED, textAlign: 'center', padding: '4px 0',
+            fontSize: 10, fontWeight: 700, letterSpacing: 0.8,
+            color: HD_MUTED, textAlign: 'center',
             textTransform: 'uppercase',
           }}>{d}</div>
         ))}
       </div>
 
-      {/* Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
-        {cells.map((ds, idx) => {
-          if (!ds) return <div key={'e' + idx} style={{ aspectRatio: '1 / 1' }} />;
-          const isToday = ds === todayStr;
-          const isFuture = ds > todayStr;
-          const isPreLaunch = ds < LAUNCH_DATE;
-          const entry = entriesByDate[ds];
-          const interactive = !!entry && !isToday && !isFuture && !isPreLaunch;
-          const hist = scoreHistory[ds] || null;
-          const wasSolved = hist ? wasSolvedOf(hist) : false;
-          const dayNum = Number(ds.slice(-2));
-          const markerColor = wasSolved ? '#22c55e' : (hist ? HD_MUTED : null);
-          const bonusColor = hist && hist.filmBonus === true ? '#fbbf24' : (hist ? '#f97316' : null);
-          return (
-            <button
-              key={ds}
-              onClick={interactive ? () => onSelectDate(ds) : undefined}
-              disabled={!interactive}
-              aria-label={isToday ? 'Today (current puzzle)' : (interactive ? 'Open puzzle for ' + ds + (wasSolved ? ', solved' : (hist ? ', played' : ', not yet played')) : 'Unavailable')}
-              style={{
-                aspectRatio: '1 / 1',
-                background: isToday ? 'rgba(34,197,94,0.14)' : 'transparent',
-                border: '1px solid ' + (isToday ? '#22c55e' : (interactive ? HD_BORDER : 'transparent')),
-                borderRadius: 8,
-                display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center',
-                gap: 2, padding: 0,
-                color: (isFuture || isPreLaunch) ? HD_DASHED : HD_TEXT,
-                fontFamily: HD_FONT,
-                cursor: interactive ? 'pointer' : 'default',
-                opacity: (isFuture || isPreLaunch) ? 0.3 : 1,
-                position: 'relative',
-              }}
-            >
-              <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
-                {dayNum}
-              </div>
-              {/* Status row — solved/played marker + bonus pip. Subtle, dense. */}
-              <div style={{ display: 'flex', gap: 3, alignItems: 'center', minHeight: 6 }}>
-                {markerColor && (
-                  <span style={{
-                    width: 6, height: 6, borderRadius: '50%',
-                    background: markerColor, display: 'inline-block',
-                  }}/>
-                )}
-                {bonusColor && (
-                  <span style={{
-                    width: 4, height: 4, borderRadius: '50%',
-                    background: bonusColor, display: 'inline-block',
-                  }}/>
-                )}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+      {/* Continuous month blocks — each month's label rides inline with
+          its first-day cell, and days flow into a single 7-column grid. */}
+      {months.map(({ y, m }, mi) => {
+        const firstDow = new Date(y, m - 1, 1).getDay();
+        const firstMonIdx = (firstDow + 6) % 7;
+        const daysInMonth = new Date(y, m, 0).getDate();
+        const monthShort = new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'short' });
 
-      {/* Legend + random-jump button */}
+        // Build rows of 7 cells. First row gets its leading blanks (Monday-start).
+        const rows = [];
+        let cur = new Array(firstMonIdx).fill(null).map(() => ({ isBlank: true }));
+        for (let d = 1; d <= daysInMonth; d++) {
+          cur.push({ ds: ymd(y, m, d), dayNum: d, isBlank: false });
+          if (cur.length === 7) { rows.push(cur); cur = []; }
+        }
+        if (cur.length > 0) {
+          while (cur.length < 7) cur.push({ isBlank: true });
+          rows.push(cur);
+        }
+
+        return (
+          <div key={'mo-' + y + '-' + m}>
+            {/* Month label — only shown from second month onward inline as a
+                chapter header; the first month leads off the calendar so no
+                redundant label is needed. */}
+            {mi > 0 && (
+              <div style={{
+                fontSize: 15, fontWeight: 800, letterSpacing: 0.3,
+                color: HD_TEXT,
+                padding: '14px 8px 6px',
+              }}>{monthShort}</div>
+            )}
+            {rows.map((row, ri) => <Row key={'r-' + mi + '-' + ri} cells={row} />)}
+          </div>
+        );
+      })}
+
+      {/* Bottom bar — small random-jump pill + tiny legend */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginTop: 12, gap: 8,
+        padding: '10px 8px 2px', gap: 8,
+        borderTop: '1px solid ' + HD_BORDER, marginTop: 4,
       }}>
         <div style={{
           display: 'flex', gap: 10, alignItems: 'center',
           fontSize: 9, color: HD_MUTED, letterSpacing: 0.8, textTransform: 'uppercase', fontWeight: 600,
         }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e' }}/>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e' }}/>
             Solved
           </span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
