@@ -99,7 +99,7 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // Bump this whenever the generator/theme algorithm changes in a way that
 // makes prior saves stale. On load, if saved.genVersion !== GEN_VERSION,
 // the saved state is discarded and a fresh puzzle is generated.
-const GEN_VERSION          = 'v9-in-play-hint-toggle-2026-04-22';
+const GEN_VERSION          = 'v10-scoring-panel-2026-04-22';
 const SCORE_HISTORY_KEY    = 'hueday-score-history';
 
 // ────────────────────────────────────────────────────────────────────
@@ -965,6 +965,98 @@ function HowToPlay({ open, onToggle, onReset, showDeg, onToggleShowDeg }) {
   );
 }
 
+function ScoringPanel({ open, onToggle }) {
+  return (
+    <div style={{
+      margin: '0 18px 10px',
+      background: HD_SURFACE,
+      border: '1px solid ' + HD_BORDER,
+      borderRadius: 10,
+      overflow: 'hidden',
+    }}>
+      <div onClick={onToggle} style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '10px 12px', cursor: 'pointer', userSelect: 'none',
+      }}>
+        <div style={{
+          fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase',
+          color: HD_TEXT,
+        }}>How scoring works</div>
+        <div style={{ fontSize: 11, color: HD_MUTED }}>{open ? '▲' : '▼'}</div>
+      </div>
+      {open && (
+        <div style={{ padding: '0 12px 12px', color: '#cfcfcf', fontSize: 11, lineHeight: 1.55 }}>
+          <div style={{ color: HD_MUTED, fontSize: 9.5, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>
+            Base score · out of 100
+          </div>
+          <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse', marginBottom: 12, fontVariantNumeric: 'tabular-nums' }}>
+            <tbody>
+              <tr style={{ borderBottom: '1px solid ' + HD_BORDER }}>
+                <td style={{ padding: '4px 6px', color: HD_TEXT }}>Solved in 1/6</td>
+                <td style={{ padding: '4px 6px', textAlign: 'right', color: HD_GREEN, fontWeight: 700 }}>100</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid ' + HD_BORDER }}>
+                <td style={{ padding: '4px 6px' }}>2/6</td>
+                <td style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 600 }}>85</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid ' + HD_BORDER }}>
+                <td style={{ padding: '4px 6px' }}>3/6</td>
+                <td style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 600 }}>70</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid ' + HD_BORDER }}>
+                <td style={{ padding: '4px 6px' }}>4/6</td>
+                <td style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 600 }}>55</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid ' + HD_BORDER }}>
+                <td style={{ padding: '4px 6px' }}>5/6</td>
+                <td style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 600 }}>40</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid ' + HD_BORDER }}>
+                <td style={{ padding: '4px 6px' }}>6/6</td>
+                <td style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 600 }}>25</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '4px 6px', color: HD_MUTED }}>Fail</td>
+                <td style={{ padding: '4px 6px', textAlign: 'right', color: HD_MUTED }}>0</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style={{ color: HD_MUTED, fontSize: 9.5, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>
+            Modifiers
+          </div>
+          <ul style={{ margin: '0 0 12px', paddingLeft: 18 }}>
+            <li style={{ marginBottom: 4 }}>
+              <span style={{ color: '#f59e42', fontWeight: 600 }}>Hints used</span> — base score is halved
+            </li>
+            <li>
+              <span style={{ color: '#fbbf24', fontWeight: 600 }}>Perfect match bonus</span> — +25 if every final slot hit the exact hue and no hints were used
+            </li>
+          </ul>
+
+          <div style={{ color: HD_MUTED, fontSize: 9.5, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>
+            Grade
+          </div>
+          <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse', marginBottom: 10, fontVariantNumeric: 'tabular-nums' }}>
+            <tbody>
+              <tr><td style={{ padding: '3px 6px', color: HD_TEXT, width: 48 }}>★★★★★ S</td><td style={{ padding: '3px 6px', color: HD_MUTED }}>100+</td></tr>
+              <tr><td style={{ padding: '3px 6px' }}>★★★★☆ A</td><td style={{ padding: '3px 6px', color: HD_MUTED }}>80–99</td></tr>
+              <tr><td style={{ padding: '3px 6px' }}>★★★☆☆ B</td><td style={{ padding: '3px 6px', color: HD_MUTED }}>60–79</td></tr>
+              <tr><td style={{ padding: '3px 6px' }}>★★☆☆☆ C</td><td style={{ padding: '3px 6px', color: HD_MUTED }}>40–59</td></tr>
+              <tr><td style={{ padding: '3px 6px' }}>★☆☆☆☆ D</td><td style={{ padding: '3px 6px', color: HD_MUTED }}>20–39</td></tr>
+              <tr><td style={{ padding: '3px 6px' }}>☆☆☆☆☆ F</td><td style={{ padding: '3px 6px', color: HD_MUTED }}>0–19</td></tr>
+            </tbody>
+          </table>
+
+          <p style={{ margin: '6px 0 0', color: HD_MUTED, fontSize: 10, lineHeight: 1.45, fontStyle: 'italic' }}>
+            Max possible: <b>125</b> · 1/6, no hints, all six exact integer matches.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ScoreCard({ score, attempts, solved, hintsUsed, exactBonus }) {
   const grade = scoreGrade(score);
   const starsFull  = '★'.repeat(grade.stars);
@@ -1434,6 +1526,7 @@ function App() {
     try { return localStorage.getItem('hueday-how-to-seen') !== '1'; }
     catch (_) { return true; }
   });
+  const [scoringOpen, setScoringOpen] = React.useState(false);
 
   // ── Virtual-date preview (session only, not persisted) ──
   const [virtualDateOffset, setVirtualDateOffset] = React.useState(0);
@@ -1988,6 +2081,8 @@ function App() {
           window.location.reload();
         }}
       />
+
+      <ScoringPanel open={scoringOpen} onToggle={() => setScoringOpen(v => !v)} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '4px 18px 0', minHeight: 0 }}>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 14 }}>
