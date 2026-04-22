@@ -1290,32 +1290,17 @@ function WelcomeModal({ onDismiss }) {
       <div className="hueday-welcome-card" onClick={(e) => e.stopPropagation()}>
         <div style={{
           fontSize: 10, letterSpacing: 3, textTransform: 'uppercase',
-          color: HD_MUTED, textAlign: 'center', marginBottom: 4,
-        }}>Welcome to</div>
-        <div style={{
-          fontSize: 22, fontWeight: 800, letterSpacing: 2,
-          color: HD_TEXT, textAlign: 'center', marginBottom: 4,
-        }}>HUEDAY</div>
-        <div style={{
-          fontSize: 11, color: HD_MUTED, textAlign: 'center',
-          fontStyle: 'italic', marginBottom: 18, letterSpacing: 0.3,
-        }}>A daily color puzzle inspired by cinema</div>
+          color: HD_MUTED, textAlign: 'center', marginBottom: 14,
+        }}>How to play</div>
 
         <Step n="1" title="Tap a slot" desc="Pick which of the 6 slots to fill — the active one has a white border." />
         <Step n="2" title="Drag the color wheel" desc="Slide your finger around the wheel to choose a hue. The center disc shows your live pick." />
         <Step n="3" title="Submit" desc="Once all 6 slots are filled, tap Submit. Green = exact hit. Yellow = right color, wrong slot. Grey = not today's palette." />
 
-        <div style={{
-          fontSize: 11, color: HD_MUTED, marginTop: 8, marginBottom: 14,
-          lineHeight: 1.5, textAlign: 'center', fontStyle: 'italic',
-        }}>
-          One new puzzle every day. You have 6 guesses.
-        </div>
-
         <button
           onClick={onDismiss}
           style={{
-            width: '100%', padding: '12px 16px',
+            width: '100%', padding: '12px 16px', marginTop: 6,
             background: '#fafafa', color: '#0e0e0e',
             border: 'none', borderRadius: 10,
             fontSize: 13, fontWeight: 700, letterSpacing: 1,
