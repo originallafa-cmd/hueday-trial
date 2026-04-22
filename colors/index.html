@@ -2595,24 +2595,6 @@ function App() {
         />
       )}
 
-      <HowToPlay
-        open={howToOpen}
-        onToggle={toggleHowTo}
-        showDeg={showDeg}
-        onToggleShowDeg={onToggleShowDeg}
-        onReset={() => {
-          if (!window.confirm("Reset today's puzzle? This wipes your attempts for today — the puzzle stays the same.")) return;
-          try {
-            localStorage.removeItem(STORAGE_KEY);
-            localStorage.removeItem(PRACTICE_BEST_KEY);
-          } catch (_) {}
-          window.location.reload();
-        }}
-      />
-
-      <ScoringPanel open={scoringOpen} onToggle={() => setScoringOpen(v => !v)} />
-      <FAQPanel open={faqOpen} onToggle={() => setFaqOpen(v => !v)} />
-
       {midHint && (
         <div
           key={`midhint-${puzzle.theme ? puzzle.theme.name : 'none'}`}
@@ -2785,6 +2767,26 @@ function App() {
         <div style={{ textAlign: 'center', fontSize: 10, color: HD_MUTED, letterSpacing: 0.6, padding: '6px 0 2px' }}>
           Prototype · spec-accurate · local state only · no server
         </div>
+      </div>
+
+      {/* Info panels moved to the bottom (Themely-style) — game stays above the fold. */}
+      <div style={{ padding: '12px 0 20px' }}>
+        <HowToPlay
+          open={howToOpen}
+          onToggle={toggleHowTo}
+          showDeg={showDeg}
+          onToggleShowDeg={onToggleShowDeg}
+          onReset={() => {
+            if (!window.confirm("Reset today's puzzle? This wipes your attempts for today — the puzzle stays the same.")) return;
+            try {
+              localStorage.removeItem(STORAGE_KEY);
+              localStorage.removeItem(PRACTICE_BEST_KEY);
+            } catch (_) {}
+            window.location.reload();
+          }}
+        />
+        <ScoringPanel open={scoringOpen} onToggle={() => setScoringOpen(v => !v)} />
+        <FAQPanel open={faqOpen} onToggle={() => setFaqOpen(v => !v)} />
       </div>
 
       {toast && (
