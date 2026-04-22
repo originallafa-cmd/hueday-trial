@@ -148,7 +148,7 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // discarded and a fresh puzzle is generated. v13 bump is justified:
 // every palette has been renamed and four were re-tuned, so
 // saved.themeName and prior feedback colors would mismatch.
-const GEN_VERSION          = 'v16-archive-extensions-2026-04-22';
+const GEN_VERSION          = 'v17-archive-unplayed-hidden-2026-04-22';
 const SCORE_HISTORY_KEY    = 'hueday-score-history';
 
 // ────────────────────────────────────────────────────────────────────
@@ -1504,8 +1504,13 @@ function ArchivePanel({ open, onToggle, todayStr, onSelectDate }) {
                             {e.targetHues.map((h, j) => (
                               <span key={j} style={{
                                 width: 8, height: 8, borderRadius: 2,
-                                background: hsbCss(h, e.S, e.B),
+                                // Only reveal the actual palette for days the player
+                                // has already played. Unplayed days get a dashed
+                                // placeholder so the archive doesn't spoil future puzzles.
+                                background: hist ? hsbCss(h, e.S, e.B) : 'transparent',
+                                border: hist ? 'none' : '1px dashed ' + HD_DASHED,
                                 display: 'inline-block',
+                                boxSizing: 'border-box',
                               }}/>
                             ))}
                           </span>
