@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <title>Hueday — a daily color puzzle</title>
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#141414" />
 <meta name="description" content="The daily hue. Guess today's 6-color palette from a movie, TV show, anime, or cartoon." />
 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -197,7 +197,7 @@ const HD_MUTED   = '#909090'; // WCAG AA: 5.8:1 on HD_BG (#7a7a7a was 4.2:1, fai
 const HD_DASHED  = '#3a3a3a';
 const HD_GREEN   = '#4ade80';
 const HD_YELLOW  = '#facc15';
-const HD_GREY    = '#6b7280';
+const HD_GREY    = '#a0a0a0'; // WCAG AA: 6.9:1 on HD_BG (#6b7280 was 3.4:1).
 
 const HD_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
@@ -210,7 +210,7 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // discarded and a fresh puzzle is generated. v13 bump is justified:
 // every palette has been renamed and four were re-tuned, so
 // saved.themeName and prior feedback colors would mismatch.
-const GEN_VERSION          = 'v26-streak-share-poster-2026-04-22';
+const GEN_VERSION          = 'v27-a11y-lighthouse-2026-04-22';
 const SCORE_HISTORY_KEY    = 'hueday-score-history';
 const DISPUTES_KEY         = 'hueday-disputes';
 
@@ -2103,7 +2103,7 @@ function HowToPlay({ open, onToggle, onReset, showDeg, onToggleShowDeg }) {
                 }}
               >
                 {showDeg ? 'Hide distances · hints on' : 'Show distances on guesses'}
-                <div style={{ fontSize: 9, letterSpacing: 1, marginTop: 2, opacity: 0.8, fontWeight: 500 }}>
+                <div style={{ fontSize: 9, letterSpacing: 1, marginTop: 2, fontWeight: 500 }}>
                   −50% score penalty
                 </div>
               </button>
@@ -3415,9 +3415,11 @@ function WheelPicker({ hueVal, puzzle, onChange, onCommit, disabled, forbiddenRa
       <div
         ref={containerRef}
         role="slider"
+        aria-label="Color hue picker — drag to choose a hue from 0 to 360 degrees"
         aria-valuenow={Math.round(hueVal)}
         aria-valuemin={0}
         aria-valuemax={360}
+        aria-valuetext={Math.round(hueVal) + ' degrees'}
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
