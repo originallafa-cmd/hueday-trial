@@ -99,7 +99,7 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // Bump this whenever the generator/theme algorithm changes in a way that
 // makes prior saves stale. On load, if saved.genVersion !== GEN_VERSION,
 // the saved state is discarded and a fresh puzzle is generated.
-const GEN_VERSION          = 'v7-wheel-elimination-2026-04-22';
+const GEN_VERSION          = 'v8-forbidden-lock-2026-04-22';
 const SCORE_HISTORY_KEY    = 'hueday-score-history';
 
 // ────────────────────────────────────────────────────────────────────
@@ -1137,6 +1137,33 @@ function CopyLastGuessButton({ onClick }) {
 //   • Conic-gradient ring rendered in HSB via 24 RGB stops
 //   • CSS radial-gradient mask punches out the center hole
 // ────────────────────────────────────────────────────────────────────
+// Return `hue` if it's not inside any forbidden range. Otherwise return
+// the nearest edge of the enclosing range. Wrap-aware. Ranges may wrap
+// past 360°. This enforces the "you can't land on an eliminated hue" lock.
+function snapOutOfForbidden(hue, ranges) {
+  if (!ranges || !ranges.length) return hue;
+  const norm = (x) => ((x % 360) + 360) % 360;
+  let h = norm(hue);
+  for (const r of ranges) {
+    const start = norm(r.start);
+    const end   = norm(r.end);
+    // Check membership (wrap-aware).
+    const inside = (start <= end)
+      ? (h >= start && h <= end)
+      : (h >= start || h <= end);
+    if (inside) {
+      // Nearest edge (shortest angular distance).
+      const dStart = Math.min(Math.abs(h - start), 360 - Math.abs(h - start));
+      const dEnd   = Math.min(Math.abs(h - end),   360 - Math.abs(h - end));
+      // Bump slightly outside so rounding doesn't snap us right back in.
+      return dStart < dEnd
+        ? norm(start - 0.5)
+        : norm(end   + 0.5);
+    }
+  }
+  return h;
+}
+
 // Build a CSS conic-gradient that dims forbidden arcs on the wheel.
 // Each forbidden range = ±8° around a grey-feedback guess hue — those
 // ranges provably cannot contain any target.
@@ -1206,6 +1233,7 @@ function WheelPicker({ hueVal, puzzle, onChange, onCommit, disabled, forbiddenRa
     `radial-gradient(circle at center, transparent ${INNER_R}px, #000 ${INNER_R + 0.5}px)`;
 
   // Pointer → hue. 0° at 12 o'clock, clockwise positive.
+  // Also hard-locks out of any forbidden arc so the thumb skips eliminated hues.
   const hueFromPoint = (cx, cy) => {
     const el = containerRef.current;
     if (!el) return hueVal;
@@ -1214,7 +1242,7 @@ function WheelPicker({ hueVal, puzzle, onChange, onCommit, disabled, forbiddenRa
     const y = cy - (r.top  + r.height / 2);
     let deg = Math.atan2(x, -y) * 180 / Math.PI;
     if (deg < 0) deg += 360;
-    return deg;
+    return snapOutOfForbidden(deg, forbiddenRanges);
   };
 
   const onDown = (e) => {
