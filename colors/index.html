@@ -195,8 +195,9 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // discarded and a fresh puzzle is generated. v13 bump is justified:
 // every palette has been renamed and four were re-tuned, so
 // saved.themeName and prior feedback colors would mismatch.
-const GEN_VERSION          = 'v20-welcome-hint-button-2026-04-22';
+const GEN_VERSION          = 'v21-cmbyn-hybrid-dispute-button-2026-04-22';
 const SCORE_HISTORY_KEY    = 'hueday-score-history';
+const DISPUTES_KEY         = 'hueday-disputes';
 
 // ────────────────────────────────────────────────────────────────────
 // Cinema-inspired palettes (v13-polish)
@@ -378,8 +379,8 @@ const CINEMA_PALETTES = [
     name: 'Call Me By Your Name',
     year: 2017, director: 'Luca Guadagnino',
     synopsis: 'In 1983 Italy, a precocious teenager falls for a grad student staying with his family.',
-    description: 'Peach, coral, olive groves, and sun-bleached Italian yellow',
-    targetHues: [15, 35, 55, 75, 95, 340], jitterMax: 3,
+    description: 'Italian sun, pool water, and evening blues',
+    targetHues: [30, 50, 70, 200, 235, 275], jitterMax: 3,
   },
   {
     name: 'Portrait of a Lady on Fire',
@@ -851,6 +852,28 @@ function saveScoreForDate(dateStr, entry) {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────
+// Palette dispute storage — lets players flag "this palette didn't feel
+// like the film" so we can see (locally) which days they contested.
+// Shape: { [dateStr]: { themeName, ts } }
+// ────────────────────────────────────────────────────────────────────
+function loadDisputes() {
+  try {
+    const raw = localStorage.getItem(DISPUTES_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) || {};
+  } catch (_) { return {}; }
+}
+function toggleDispute(dateStr, themeName) {
+  try {
+    const all = loadDisputes();
+    if (all[dateStr]) delete all[dateStr];
+    else all[dateStr] = { themeName, ts: Date.now() };
+    localStorage.setItem(DISPUTES_KEY, JSON.stringify(all));
+    return all[dateStr] ? true : false;
+  } catch (_) { return false; }
+}
+
 // Visual primitives
 // ────────────────────────────────────────────────────────────────────
 function TitleBar({ dateStr, practiceMode, strictMode, category }) {
@@ -1738,7 +1761,38 @@ function PalettePoster({ theme, puzzle }) {
   );
 }
 
-function MoviePosterReveal({ theme, puzzle }) {
+// Dispute button — lets the player flag "this palette didn't feel
+// like the film." Stores a local record per-date. Toggleable: tap
+// again to un-flag. Doesn't affect score or game state.
+function DisputeButton({ dateStr, themeName }) {
+  const [disputed, setDisputed] = React.useState(() => !!loadDisputes()[dateStr]);
+  const onClick = () => {
+    const newState = toggleDispute(dateStr, themeName);
+    setDisputed(newState);
+  };
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: disputed ? 'rgba(239,68,68,0.14)' : 'transparent',
+        color: disputed ? '#f87171' : HD_MUTED,
+        border: '1px solid ' + (disputed ? '#f87171' : HD_BORDER),
+        padding: '6px 12px', borderRadius: 8,
+        fontSize: 10, fontWeight: 600, letterSpacing: 1.2,
+        textTransform: 'uppercase', cursor: 'pointer',
+        fontFamily: HD_FONT, marginTop: 8,
+        whiteSpace: 'nowrap',
+      }}
+      title={disputed
+        ? 'You flagged this palette. Tap to un-flag.'
+        : "Doesn't feel like the film? Flag it."}
+    >
+      {disputed ? "✗ Flagged · doesn't feel like it" : "Doesn't feel like the film?"}
+    </button>
+  );
+}
+
+function MoviePosterReveal({ theme, puzzle, dateStr }) {
   const searchUrl = 'https://www.google.com/search?tbm=isch&q=' +
     encodeURIComponent(theme.name + ' movie poster scene');
   const yearDir = [theme.year, theme.director].filter(Boolean).join(' · ');
@@ -1783,6 +1837,7 @@ function MoviePosterReveal({ theme, puzzle }) {
           marginTop: 2,
         }}
       >View posters & scenes →</a>
+      {dateStr && <DisputeButton dateStr={dateStr} themeName={theme.name} />}
     </div>
   );
 }
@@ -3157,7 +3212,7 @@ function App() {
                       onSkip={() => {}}
                     />
                   )}
-                  <MoviePosterReveal theme={puzzle.theme} puzzle={puzzle} />
+                  <MoviePosterReveal theme={puzzle.theme} puzzle={puzzle} dateStr={dateStr} />
                 </>
               )}
 
