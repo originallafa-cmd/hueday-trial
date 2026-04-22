@@ -36,13 +36,14 @@
   #root { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; }
   button { -webkit-user-select: none; user-select: none; font-family: inherit; }
 
-  /* Respect the OS reduced-motion preference. Everything keeps working, just
-     without the motion. */
+  /* Respect the OS reduced-motion preference. We kill the keyframe animations
+     (shake, pulse, lock-in, fade-in, stagger) but keep short transitions —
+     transitions are the only drag/tap affordance the game has, and zeroing
+     them out makes the wheel thumb feel dead. */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
     }
   }
 
@@ -161,9 +162,15 @@
   .hueday-archive-row:hover { background-color: rgba(255,255,255,0.03) !important; }
   .hueday-archive-row:active { transform: scale(0.98); background-color: rgba(255,255,255,0.05) !important; }
 </style>
-<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"
+        integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z"
+        crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"
+        integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1"
+        crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"
+        integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y"
+        crossorigin="anonymous"></script>
 </head>
 <body>
 <div id="root"></div>
@@ -186,7 +193,7 @@ const HD_BG      = '#141414';
 const HD_SURFACE = '#1c1c1c';
 const HD_BORDER  = '#2a2a2a';
 const HD_TEXT    = '#ededed';
-const HD_MUTED   = '#7a7a7a';
+const HD_MUTED   = '#909090'; // WCAG AA: 5.8:1 on HD_BG (#7a7a7a was 4.2:1, failed).
 const HD_DASHED  = '#3a3a3a';
 const HD_GREEN   = '#4ade80';
 const HD_YELLOW  = '#facc15';
@@ -203,7 +210,7 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // discarded and a fresh puzzle is generated. v13 bump is justified:
 // every palette has been renamed and four were re-tuned, so
 // saved.themeName and prior feedback colors would mismatch.
-const GEN_VERSION          = 'v24-anime-split-expansion-2026-04-22';
+const GEN_VERSION          = 'v25-184-palettes-round2-fixes-2026-04-22';
 const SCORE_HISTORY_KEY    = 'hueday-score-history';
 const DISPUTES_KEY         = 'hueday-disputes';
 
@@ -309,6 +316,107 @@ const MID_HINTS = {
   'Courage the Cowardly Dog': 'nowhere',
   'Samurai Jack': 'samurai',
   'Ren & Stimpy': 'gross-out',
+  // TV expansion
+  'Twin Peaks': 'lodge',
+  'Twin Peaks: The Return': 'return',
+  'Mad Men': 'madison',
+  'Boardwalk Empire': 'prohibition',
+  'Peaky Blinders': 'birmingham',
+  'Chernobyl': 'reactor',
+  'Deadwood': 'gold-rush',
+  'Six Feet Under': 'funeral',
+  'Carnivàle': 'dustbowl',
+  'Hannibal': 'gourmand',
+  'Killing Eve': 'obsession',
+  'Fleabag': 'pew',
+  'Russian Doll': 'loop',
+  'Midnight Mass': 'miracle',
+  'Succession': 'boardroom',
+  'Pose': 'ballroom',
+  'I May Destroy You': 'spike',
+  'What We Do in the Shadows': 'roommates',
+  'The Queen\'s Gambit': 'gambit',
+  'Fargo': 'snowdrift',
+  'Atlanta': 'humid',
+  'The Americans': 'deep-cover',
+  'Westworld': 'host',
+  'The Wire': 'wire',
+  'Tokyo Vice': 'yakuza',
+  'Ozark': 'lake',
+  'Industry': 'graduates',
+  'The Underground Railroad': 'flight',
+  'Shōgun': 'shogun',
+  'Mare of Easttown': 'easttown',
+  'The White Lotus': 'resort',
+  'Top of the Lake': 'lake-nz',
+  'Mr Inbetween': 'hitman',
+  'The Handmaid\'s Tale': 'gilead',
+  // Anime expansion
+  'Nausicaä of the Valley of the Wind': 'valley',
+  'Castle in the Sky': 'laputa',
+  'Kiki\'s Delivery Service': 'broom',
+  'My Neighbor Totoro': 'totoro',
+  'Porco Rosso': 'adriatic',
+  'Howl\'s Moving Castle': 'castle',
+  'The Wind Rises': 'flight-plan',
+  'Grave of the Fireflies': 'firefly',
+  'The Tale of the Princess Kaguya': 'kaguya',
+  'Whisper of the Heart': 'library',
+  'Weathering With You': 'rain',
+  '5 Centimeters per Second': 'snowfall',
+  'Millennium Actress': 'reel',
+  'Tokyo Godfathers': 'godfathers',
+  'Paranoia Agent': 'bat',
+  'Angel\'s Egg': 'egg',
+  'Jin-Roh: The Wolf Brigade': 'wolf',
+  'Metropolis': 'deco',
+  'Vampire Hunter D: Bloodlust': 'dhampir',
+  'Ninja Scroll': 'scroll',
+  'Redline': 'race',
+  'Summer Wars': 'oz',
+  'Wolf Children': 'mountain',
+  'A Silent Voice': 'koi',
+  'Serial Experiments Lain': 'wired',
+  'Mushishi': 'spirit',
+  'Gurren Lagann': 'spiral',
+  'Kill la Kill': 'uniform',
+  'Promare': 'flame',
+  'Devilman Crybaby': 'crybaby',
+  'The Night Is Short Walk On Girl': 'kyoto',
+  'Ride Your Wave': 'wave',
+  'Liz and the Blue Bird': 'duet',
+  'Only Yesterday': 'yesterday',
+  'Pom Poko': 'tanuki',
+  'Patlabor 2: The Movie': 'martial-law',
+  'Mirai': 'garden',
+  // Cartoon expansion
+  'Looney Tunes': 'carrot',
+  'Mickey Mouse': 'mouse',
+  'Popeye the Sailor': 'spinach',
+  'The Jetsons': 'orbit',
+  'Yogi Bear': 'jellystone',
+  'Rocko\'s Modern Life': 'wallaby',
+  'Hey Arnold!': 'boardinghouse',
+  'Doug': 'journal',
+  'Johnny Bravo': 'pompadour',
+  'Ed, Edd n Eddy': 'jawbreaker',
+  'The Smurfs': 'smurf',
+  'My Little Pony': 'pony',
+  'Transformers': 'rollout',
+  'ThunderCats': 'ho',
+  'Regular Show': 'park',
+  'Steven Universe': 'gem',
+  'Infinity Train': 'train',
+  'Primal': 'prehistoric',
+  'Scavengers Reign': 'reign',
+  'The Midnight Gospel': 'gospel',
+  'Futurama': 'delivery',
+  'Rick and Morty': 'portal',
+  'The Amazing World of Gumball': 'elmore',
+  'Aladdin': 'agrabah',
+  'The Lion King': 'pride',
+  'Beauty and the Beast': 'rose',
+  'Toy Story': 'andy',
 };
 
 function midHintFor(theme) {
@@ -942,6 +1050,116 @@ const CINEMA_PALETTES = [
     description: 'Ren red, Stimpy pink, gross-out green, and gag-yellow',
     targetHues: [0, 25, 50, 130, 290, 330], jitterMax: 3, category: 'Cartoon',
   },
+
+  // ══════════════════════════════════════════════════════════════════
+  // TV — expansion to 50
+  // ══════════════════════════════════════════════════════════════════
+  { name: 'Twin Peaks', year: 1990, director: 'David Lynch', synopsis: 'An FBI agent investigates the death of a small-town beauty queen and finds a supernatural forest.', description: 'Red velvet curtains, cherry-pie amber, and log-lady brown', targetHues: [5,25,45,70,140,320], jitterMax: 3, category: 'TV' },
+  { name: 'Twin Peaks: The Return', year: 2017, director: 'David Lynch', synopsis: 'Twenty-five years later, Agent Cooper drifts back through dream and television.', description: 'Neon electricity violet, lodge pink, and glass-box blue', targetHues: [5,30,195,270,300,330], jitterMax: 3, category: 'TV' },
+  { name: 'Mad Men', year: 2007, director: 'Matthew Weiner', synopsis: 'A 1960s Manhattan ad agency sells the American dream while its men quietly unravel.', description: '60s jewel tones — emerald, oxblood, midnight blue, mustard', targetHues: [0,25,55,175,210,270], jitterMax: 3, category: 'TV' },
+  { name: 'Boardwalk Empire', year: 2010, director: 'Terence Winter', synopsis: 'Prohibition-era Atlantic City is run by a politician-gangster who profits from everyone\'s thirst.', description: 'Atlantic sepia, crimson suit, gold pocket-watch, and navy boardwalk', targetHues: [15,35,55,75,180,340], jitterMax: 3, category: 'TV' },
+  { name: 'Peaky Blinders', year: 2013, director: 'Steven Knight', synopsis: 'A Birmingham gangster family climbs from post-WWI slums to industrial empire.', description: 'Small Heath sepia, blood-lined razor cap, and navy razor-suit', targetHues: [0,25,50,75,210,230], jitterMax: 3, category: 'TV' },
+  { name: 'Chernobyl', year: 2019, director: 'Craig Mazin', synopsis: 'The 1986 nuclear disaster told through the engineers, officials, and civilians consumed by it.', description: 'Irradiated green glow, concrete grey, and siren red', targetHues: [0,25,80,105,140,200], jitterMax: 3, category: 'TV' },
+  { name: 'Deadwood', year: 2004, director: 'David Milch', synopsis: 'A gold-rush camp on Lakota land becomes a brutal town of prospectors, whores, and killers.', description: 'Gold-rush dust, saloon crimson, and Dakota dirt', targetHues: [10,30,50,75,145,340], jitterMax: 3, category: 'TV' },
+  { name: 'Six Feet Under', year: 2001, director: 'Alan Ball', synopsis: 'A dysfunctional family runs a Los Angeles funeral home while losing, loving, and burying each other.', description: 'Funeral-home pastel, embalming grey, and one insistent red', targetHues: [0,30,55,180,205,300], jitterMax: 3, category: 'TV' },
+  { name: 'Carnivàle', year: 2003, director: 'Daniel Knauf', synopsis: 'A Depression-era travelling carnival and a charismatic preacher are pulled toward a supernatural showdown.', description: 'Dustbowl ochre, sepia carnival tent, and prophecy violet', targetHues: [15,35,55,80,120,345], jitterMax: 3, category: 'TV' },
+  { name: 'Hannibal', year: 2013, director: 'Bryan Fuller', synopsis: 'An FBI profiler with dangerous empathy is treated by a brilliant psychiatrist who is himself a cannibal.', description: 'Blood red, midnight navy, and gold plating', targetHues: [355,20,45,220,245,275], jitterMax: 3, category: 'TV' },
+  { name: 'Killing Eve', year: 2018, director: 'Phoebe Waller-Bridge', synopsis: 'A bored intelligence analyst becomes obsessed with the stylish assassin she\'s hunting.', description: 'Villanelle raspberry, Eve teal, and couture green', targetHues: [5,25,100,125,320,340], jitterMax: 3, category: 'TV' },
+  { name: 'Fleabag', year: 2016, director: 'Phoebe Waller-Bridge', synopsis: 'A grief-stricken young Londoner breaks the fourth wall while sabotaging every relationship in her life.', description: 'Raspberry jumpsuit, cream silence, and muted pink breakdown', targetHues: [0,25,45,220,280,335], jitterMax: 3, category: 'TV' },
+  { name: 'Russian Doll', year: 2019, director: 'Natasha Lyonne', synopsis: 'A New Yorker keeps dying on her 36th birthday and waking up at the same party.', description: 'NYC neon red door, bathroom amber, and cigarette-haze blue', targetHues: [0,25,45,65,180,280], jitterMax: 3, category: 'TV' },
+  { name: 'Midnight Mass', year: 2021, director: 'Mike Flanagan', synopsis: 'A priest arrives on a remote island with a miracle — and something much darker.', description: 'Vestment crimson, candle gold, and Atlantic cold-blue', targetHues: [355,20,45,70,200,225], jitterMax: 3, category: 'TV' },
+  { name: 'Succession', year: 2018, director: 'Jesse Armstrong', synopsis: 'Four adult children of a media titan scheme to inherit his empire and destroy each other first.', description: 'Luxury greige, boardroom navy, gold seal, and muted blood', targetHues: [30,50,75,200,225,345], jitterMax: 3, category: 'TV' },
+  { name: 'Pose', year: 2018, director: 'Ryan Murphy', synopsis: 'Black and Latinx queer and trans New Yorkers build families in the 1980s ball scene.', description: 'Ballroom gold, hot-pink category, and teal voguing light', targetHues: [40,60,175,200,320,345], jitterMax: 3, category: 'TV' },
+  { name: 'I May Destroy You', year: 2020, director: 'Michaela Coel', synopsis: 'A London writer reassembles her life after her drink is spiked at a bar.', description: 'Cotton-candy pink, yellow denial, and teal reckoning', targetHues: [45,65,175,200,300,325], jitterMax: 3, category: 'TV' },
+  { name: 'What We Do in the Shadows', year: 2019, director: 'Jemaine Clement', synopsis: 'Four centuries-old vampires share a Staten Island house and bicker about chore charts.', description: 'Coffin velvet, blood red, candle amber, and bat-purple', targetHues: [0,25,45,250,280,310], jitterMax: 3, category: 'TV' },
+  { name: 'The Queen\'s Gambit', year: 2020, director: 'Scott Frank', synopsis: 'An orphaned chess prodigy rises through 1960s tournaments while fighting addiction.', description: 'Emerald board, 60s jewel red, and tournament gold', targetHues: [0,30,50,140,165,210], jitterMax: 3, category: 'TV' },
+  { name: 'Fargo', year: 2014, director: 'Noah Hawley', synopsis: 'Anthology of Minnesota and North Dakota crimes told in the Coen Brothers\' key.', description: 'Snow pale-blue, blood red, pine dark, and parka orange', targetHues: [355,25,50,110,140,200], jitterMax: 3, category: 'TV' },
+  { name: 'Atlanta', year: 2016, director: 'Donald Glover', synopsis: 'A Princeton dropout manages his cousin\'s rising rap career through an Atlanta that dreams sideways.', description: 'Humid green, red brick, and streetlight orange', targetHues: [0,25,50,85,135,200], jitterMax: 3, category: 'TV' },
+  { name: 'The Americans', year: 2013, director: 'Joe Weisberg', synopsis: 'Two deep-cover Soviet spies raise American children in 1980s suburban DC.', description: '80s beige suburb, KGB red, and Reagan-blue', targetHues: [0,25,50,75,215,240], jitterMax: 3, category: 'TV' },
+  { name: 'Westworld', year: 2016, director: 'Jonathan Nolan', synopsis: 'Guests at a futuristic theme park discover the android hosts may be waking up.', description: 'Saloon sepia, red dust, and simulation navy', targetHues: [15,35,55,80,225,340], jitterMax: 3, category: 'TV' },
+  { name: 'The Wire', year: 2002, director: 'David Simon', synopsis: 'Cops, dealers, unions, schools, and press tell the story of Baltimore one institution at a time.', description: 'Baltimore brick, row-house tan, and badge navy', targetHues: [0,25,45,70,185,215], jitterMax: 3, category: 'TV' },
+  { name: 'Tokyo Vice', year: 2022, director: 'J.T. Rogers', synopsis: 'An American journalist in 1990s Tokyo gets pulled into the yakuza by a weary senior detective.', description: 'Shinjuku neon amber, pachinko cyan, and love-hotel pink', targetHues: [20,45,180,210,300,335], jitterMax: 3, category: 'TV' },
+  { name: 'Ozark', year: 2017, director: 'Bill Dubuque', synopsis: 'A financial planner relocates his family to a Missouri lake resort to launder cartel money.', description: 'Missouri-lake teal, fog grey, and launderer\'s orange', targetHues: [15,40,160,185,210,235], jitterMax: 3, category: 'TV' },
+  { name: 'Industry', year: 2020, director: 'Mickey Down & Konrad Kay', synopsis: 'Young graduates compete for permanent spots at a brutal London investment bank.', description: 'Canary-Wharf navy, champagne gold, and red-lipstick power', targetHues: [0,25,45,65,220,245], jitterMax: 3, category: 'TV' },
+  { name: 'The Underground Railroad', year: 2021, director: 'Barry Jenkins', synopsis: 'A Black woman escapes slavery on a literal subterranean rail network through an alt-1800s America.', description: 'Cotton-field white, forest flight, and sunset-red horizon', targetHues: [0,25,50,75,130,155], jitterMax: 3, category: 'TV' },
+  { name: 'Shōgun', year: 2024, director: 'Rachel Kondo & Justin Marks', synopsis: 'In 1600 Japan, an English sailor becomes a political piece in a civil war for the shogunate.', description: 'Samurai crimson, mist grey, castle gold, and Pacific deep', targetHues: [0,20,40,60,130,200], jitterMax: 3, category: 'TV' },
+  { name: 'Mare of Easttown', year: 2021, director: 'Brad Ingelsby', synopsis: 'A Pennsylvania detective investigates a teenager\'s murder while her own life falls apart.', description: 'Rust-belt brown, winter blue, and diner-booth red', targetHues: [15,35,55,180,205,225], jitterMax: 3, category: 'TV' },
+  { name: 'The White Lotus', year: 2021, director: 'Mike White', synopsis: 'Wealthy guests at a luxury resort reveal themselves over the course of one week.', description: 'Sicilian sea, resort coral, and sunset cabana pink', targetHues: [0,20,45,195,220,330], jitterMax: 3, category: 'TV' },
+  { name: 'Top of the Lake', year: 2013, director: 'Jane Campion', synopsis: 'A detective returns to her New Zealand hometown to investigate the disappearance of a pregnant 12-year-old.', description: 'NZ lake mist, pine shadow, and loch-grey morning', targetHues: [20,45,120,145,195,225], jitterMax: 3, category: 'TV' },
+  { name: 'Mr Inbetween', year: 2018, director: 'Scott Ryan', synopsis: 'A Sydney hitman navigates school drop-offs, girlfriends, and contract killings with equal calm.', description: 'Sydney dust, western-suburbs blue, and muted crimson', targetHues: [20,40,60,180,200,220], jitterMax: 3, category: 'TV' },
+  { name: 'The Handmaid\'s Tale', year: 2017, director: 'Bruce Miller', synopsis: 'In a totalitarian near-future New England, fertile women are forced to bear children for ruling families.', description: 'Red handmaid robe, wall-grey, and Martha green', targetHues: [0,20,45,115,140,210], jitterMax: 3, category: 'TV' },
+
+  // ══════════════════════════════════════════════════════════════════
+  // Anime — expansion to 50
+  // ══════════════════════════════════════════════════════════════════
+  { name: 'Nausicaä of the Valley of the Wind', year: 1984, director: 'Hayao Miyazaki', synopsis: 'A princess pilot defends her valley from industrial powers and a toxic spreading forest.', description: 'Valley-green, toxic-forest ochre, and warrior brass', targetHues: [25,50,80,105,135,160], jitterMax: 3, category: 'Anime' },
+  { name: 'Castle in the Sky', year: 1986, director: 'Hayao Miyazaki', synopsis: 'A boy and a girl hunted by sky-pirates and the military seek a lost floating castle.', description: 'Sky-island blue, emerald leaves, and Laputa bronze', targetHues: [25,50,130,155,200,225], jitterMax: 3, category: 'Anime' },
+  { name: 'Kiki\'s Delivery Service', year: 1989, director: 'Hayao Miyazaki', synopsis: 'A young witch moves to a new town and starts a delivery service on her broom.', description: 'Witch violet, red-ribbon, and sea-breeze blue', targetHues: [0,25,45,200,225,280], jitterMax: 3, category: 'Anime' },
+  { name: 'My Neighbor Totoro', year: 1988, director: 'Hayao Miyazaki', synopsis: 'Two sisters move to the countryside and befriend a giant forest spirit.', description: 'Totoro green, acorn brown, and summer-sky', targetHues: [30,55,80,115,145,210], jitterMax: 3, category: 'Anime' },
+  { name: 'Porco Rosso', year: 1992, director: 'Hayao Miyazaki', synopsis: 'A pig-faced WWI fighter ace hunts air pirates over the interwar Adriatic.', description: 'Adriatic blue, sunset crimson, and seaplane sepia', targetHues: [0,25,50,75,195,220], jitterMax: 3, category: 'Anime' },
+  { name: 'Howl\'s Moving Castle', year: 2004, director: 'Hayao Miyazaki', synopsis: 'A young hatmaker cursed with old age seeks help from a vain wizard and his walking castle.', description: 'Wizard violet, fire-demon orange, and meadow green', targetHues: [0,25,110,135,290,320], jitterMax: 3, category: 'Anime' },
+  { name: 'The Wind Rises', year: 2013, director: 'Hayao Miyazaki', synopsis: 'A young engineer dreams his way into designing fighter planes for the coming war.', description: 'Dawn pink, field green, and propeller grey', targetHues: [20,45,80,105,130,330], jitterMax: 3, category: 'Anime' },
+  { name: 'Grave of the Fireflies', year: 1988, director: 'Isao Takahata', synopsis: 'Two orphaned siblings try to survive the firebombings of 1945 Kobe.', description: 'Firelight amber, ash sepia, and grave-fade pink', targetHues: [15,35,55,75,140,340], jitterMax: 3, category: 'Anime' },
+  { name: 'The Tale of the Princess Kaguya', year: 2013, director: 'Isao Takahata', synopsis: 'A bamboo cutter raises a miniature princess who grows impossibly fast and must return to the moon.', description: 'Watercolour blossom pink, bamboo green, and moon-silk gold', targetHues: [0,25,100,125,310,335], jitterMax: 3, category: 'Anime' },
+  { name: 'Whisper of the Heart', year: 1995, director: 'Yoshifumi Kondō', synopsis: 'A bookish teen meets a boy who is always ahead of her in the library checkout card.', description: 'Library warm, sunset pink, and steel-blue twilight', targetHues: [15,35,55,75,220,335], jitterMax: 3, category: 'Anime' },
+  { name: 'Weathering With You', year: 2019, director: 'Makoto Shinkai', synopsis: 'A Tokyo runaway meets a girl who can summon sunshine in a city drowning in rain.', description: 'Rain blue, neon Shinjuku, and sunshine-girl yellow', targetHues: [45,65,195,220,300,325], jitterMax: 3, category: 'Anime' },
+  { name: '5 Centimeters per Second', year: 2007, director: 'Makoto Shinkai', synopsis: 'Three vignettes about distance, trains, and the impossibility of staying close.', description: 'Cherry-blossom, train-yellow, and snowfall blue', targetHues: [40,60,195,220,320,345], jitterMax: 3, category: 'Anime' },
+  { name: 'Millennium Actress', year: 2001, director: 'Satoshi Kon', synopsis: 'A documentarian interviews a reclusive actress and follows her through the films of her life.', description: 'Reel-red, period gold, and dream-blue', targetHues: [0,20,45,70,210,235], jitterMax: 3, category: 'Anime' },
+  { name: 'Tokyo Godfathers', year: 2003, director: 'Satoshi Kon', synopsis: 'Three homeless Tokyoites find an abandoned baby on Christmas Eve and try to return her.', description: 'Christmas red, alley neon pink, and drunk-blue', targetHues: [0,25,45,195,220,335], jitterMax: 3, category: 'Anime' },
+  { name: 'Paranoia Agent', year: 2004, director: 'Satoshi Kon', synopsis: 'A rollerblading boy with a golden bat assaults stressed Tokyoites — if he exists at all.', description: 'Golden-bat yellow, pastel cap pink, and Tokyo teal', targetHues: [40,60,180,205,320,340], jitterMax: 3, category: 'Anime' },
+  { name: 'Angel\'s Egg', year: 1985, director: 'Mamoru Oshii', synopsis: 'A girl guards an egg in a ruined world; a soldier arrives and asks what\'s inside.', description: 'Stained-glass blue, lantern amber, and ruin-grey', targetHues: [25,45,200,220,240,285], jitterMax: 3, category: 'Anime' },
+  { name: 'Jin-Roh: The Wolf Brigade', year: 1999, director: 'Hiroyuki Okiura', synopsis: 'An armoured counter-terror officer in an alt-history Japan is haunted by a bomber girl.', description: 'Wolf-brigade red-eye, Kevlar, and blood snow', targetHues: [0,20,40,65,200,225], jitterMax: 3, category: 'Anime' },
+  { name: 'Metropolis', year: 2001, director: 'Rintaro', synopsis: 'A detective and his nephew investigate a robot girl at the heart of an art-deco city.', description: 'Art-deco gold, red alarm, and sky-tier cyan', targetHues: [20,40,60,80,200,340], jitterMax: 3, category: 'Anime' },
+  { name: 'Vampire Hunter D: Bloodlust', year: 2000, director: 'Yoshiaki Kawajiri', synopsis: 'A dhampir tracks a noble vampire who has taken a young woman into the wasteland.', description: 'Gothic blue, bloodline crimson, and amulet gold', targetHues: [355,20,45,225,250,275], jitterMax: 3, category: 'Anime' },
+  { name: 'Ninja Scroll', year: 1993, director: 'Yoshiaki Kawajiri', synopsis: 'A wandering ninja fights eight demonic assassins through feudal Japan.', description: 'Forest-night green, kimono indigo, and blade-blood', targetHues: [0,25,100,125,220,245], jitterMax: 3, category: 'Anime' },
+  { name: 'Redline', year: 2009, director: 'Takeshi Koike', synopsis: 'A driver races across the galaxy\'s most dangerous rally course in a ridiculous hot rod.', description: 'Race-red, jumpsuit yellow, and deep-space blue', targetHues: [0,25,45,65,215,335], jitterMax: 3, category: 'Anime' },
+  { name: 'Summer Wars', year: 2009, director: 'Mamoru Hosoda', synopsis: 'A math genius pretending to be a rural family\'s fiancé gets pulled into a global cyber crisis.', description: 'Jinnouchi kimono indigo, summer green, and OZ pink', targetHues: [20,45,130,155,200,330], jitterMax: 3, category: 'Anime' },
+  { name: 'Wolf Children', year: 2012, director: 'Mamoru Hosoda', synopsis: 'A single mother raises two half-wolf children alone in the mountains.', description: 'Mountain mist, autumn orange, and forest umber', targetHues: [20,45,75,105,135,200], jitterMax: 3, category: 'Anime' },
+  { name: 'A Silent Voice', year: 2016, director: 'Naoko Yamada', synopsis: 'A bully seeks out the deaf classmate he tormented in elementary school.', description: 'Koi-pond blue, cherry blossom, and notebook yellow', targetHues: [45,65,180,200,320,345], jitterMax: 3, category: 'Anime' },
+  { name: 'Serial Experiments Lain', year: 1998, director: 'Ryūtarō Nakamura', synopsis: 'A quiet teen discovers a dead classmate sending emails, and follows her into the Wired.', description: 'CRT glow-green, data-red, and terminal grey', targetHues: [0,20,45,95,120,200], jitterMax: 3, category: 'Anime' },
+  { name: 'Mushishi', year: 2005, director: 'Hiroshi Nagahama', synopsis: 'A wandering scholar investigates encounters between humans and primordial spirits called Mushi.', description: 'Forest moss, gold spirit-trail, and mountain mist', targetHues: [40,60,85,110,140,220], jitterMax: 3, category: 'Anime' },
+  { name: 'Gurren Lagann', year: 2007, director: 'Hiroyuki Imaishi', synopsis: 'Two underground teens pilot a face-shaped mech to the surface and then keep going up.', description: 'Spiral-red, sunglasses yellow, and sky-piercing cyan', targetHues: [0,25,50,75,180,210], jitterMax: 3, category: 'Anime' },
+  { name: 'Kill la Kill', year: 2013, director: 'Hiroyuki Imaishi', synopsis: 'A one-bladed orphan transfers to a school ruled by uniforms that give their wearers powers.', description: 'Senketsu crimson, uniform gold, and Honnōji navy', targetHues: [0,25,45,65,215,240], jitterMax: 3, category: 'Anime' },
+  { name: 'Promare', year: 2019, director: 'Hiroyuki Imaishi', synopsis: 'Firefighters with mech suits battle a new species of mutants that spontaneously combust.', description: 'Flame-rose, Burnish electric blue, and warning yellow', targetHues: [0,25,50,200,230,320], jitterMax: 3, category: 'Anime' },
+  { name: 'Devilman Crybaby', year: 2018, director: 'Masaaki Yuasa', synopsis: 'A gentle boy merges with a demon so he can fight worse ones, and loses everything anyway.', description: 'Neon-pink lust, demon red, and acid green', targetHues: [0,25,55,200,280,320], jitterMax: 3, category: 'Anime' },
+  { name: 'The Night Is Short Walk On Girl', year: 2017, director: 'Masaaki Yuasa', synopsis: 'A college girl spends one impossibly long Kyoto night drinking, reading, and falling in love.', description: 'Kyoto red-lantern, sake amber, and midnight violet', targetHues: [15,35,55,200,280,330], jitterMax: 3, category: 'Anime' },
+  { name: 'Ride Your Wave', year: 2019, director: 'Masaaki Yuasa', synopsis: 'A surfer girl\'s firefighter boyfriend drowns — and reappears in every body of water she faces.', description: 'Ocean blue, firefighter red, and summer lemon', targetHues: [0,25,50,195,225,275], jitterMax: 3, category: 'Anime' },
+  { name: 'Liz and the Blue Bird', year: 2018, director: 'Naoko Yamada', synopsis: 'Two high-school band girls rehearse a duet about parting, and quietly face their own parting.', description: 'School uniform indigo, sakura petal, and brass-reed gold', targetHues: [20,45,200,225,330,355], jitterMax: 3, category: 'Anime' },
+  { name: 'Only Yesterday', year: 1991, director: 'Isao Takahata', synopsis: 'A 27-year-old Tokyo office worker takes a rural holiday and is haunted by her 10-year-old self.', description: '1966 Tokyo beige, country-field green, and memory-rose', targetHues: [20,40,65,90,130,210], jitterMax: 3, category: 'Anime' },
+  { name: 'Pom Poko', year: 1994, director: 'Isao Takahata', synopsis: 'Shape-shifting tanuki wage a losing war against Tokyo suburban development.', description: 'Tanuki brown, forest bamboo, and civilization concrete', targetHues: [20,40,75,100,140,210], jitterMax: 3, category: 'Anime' },
+  { name: 'Patlabor 2: The Movie', year: 1993, director: 'Mamoru Oshii', synopsis: 'A false-flag bombing pushes Tokyo toward martial law; two police officers try to stop it.', description: 'Military khaki, concrete winter, and red-alert', targetHues: [0,25,60,85,110,200], jitterMax: 3, category: 'Anime' },
+  { name: 'Mirai', year: 2018, director: 'Mamoru Hosoda', synopsis: 'A jealous four-year-old meets his baby sister as a teenager from the future in the family garden.', description: 'Family-kitchen warm, garden green, and heirloom blue', targetHues: [15,35,100,125,200,225], jitterMax: 3, category: 'Anime' },
+
+  // ══════════════════════════════════════════════════════════════════
+  // Cartoon — expansion to 50
+  // ══════════════════════════════════════════════════════════════════
+  { name: 'Looney Tunes', year: 1930, director: 'Warner Bros.', synopsis: 'Bugs Bunny, Daffy, Elmer and the rest headline decades of six-minute chaos.', description: 'Carrot orange, Elmer red, Tweety yellow, and studio-sky blue', targetHues: [0,25,45,130,200,230], jitterMax: 3, category: 'Cartoon' },
+  { name: 'Mickey Mouse', year: 1928, director: 'Walt Disney', synopsis: 'Cheerful mouse-cartoons starring Disney\'s mascot across ninety years of shorts.', description: 'Mickey-short red, shoe-yellow, glove-cream, and Disney blue', targetHues: [0,25,45,65,200,230], jitterMax: 3, category: 'Cartoon' },
+  { name: 'Popeye the Sailor', year: 1929, director: 'Max Fleischer', synopsis: 'A spinach-fueled sailor fights for Olive Oyl against the brute Bluto.', description: 'Sailor navy, spinach green, Olive red, and pipe amber', targetHues: [0,30,50,130,200,225], jitterMax: 3, category: 'Cartoon' },
+  { name: 'The Jetsons', year: 1962, director: 'Hanna-Barbera', synopsis: 'A 21st-century family in Orbit City navigates flying cars and robot maids.', description: 'Space-age pink, cyan, retrofuture yellow, and cosmic red', targetHues: [0,25,50,180,280,310], jitterMax: 3, category: 'Cartoon' },
+  { name: 'Yogi Bear', year: 1961, director: 'Hanna-Barbera', synopsis: 'A pic-a-nic-basket-stealing bear outsmarts Ranger Smith in Jellystone Park.', description: 'Park forest, pic-a-nic red, Jellystone ochre, and Boo-Boo blue', targetHues: [15,35,55,80,135,200], jitterMax: 3, category: 'Cartoon' },
+  { name: 'Rocko\'s Modern Life', year: 1993, director: 'Joe Murray', synopsis: 'A neurotic wallaby navigates suburban O-Town with a steer and a dog-thing.', description: 'Wallaby teal, Heffer orange, Filburt tan, and O-Town violet', targetHues: [0,25,50,200,225,285], jitterMax: 3, category: 'Cartoon' },
+  { name: 'Hey Arnold!', year: 1996, director: 'Craig Bartlett', synopsis: 'A football-headed kid in a multi-ethnic city block lives with his grandparents in a boarding house.', description: 'Football-head blonde, flannel blue, Helga pink, and Gerald red', targetHues: [0,30,50,75,200,225], jitterMax: 3, category: 'Cartoon' },
+  { name: 'Doug', year: 1991, director: 'Jim Jinkins', synopsis: 'A shy new kid in Bluffington keeps a journal about his crush, his dog, and his imagined hero.', description: 'Doug green, Porkchop white-on-tan, Patti red, and Bluffington blue', targetHues: [0,30,55,80,130,210], jitterMax: 3, category: 'Cartoon' },
+  { name: 'Johnny Bravo', year: 1997, director: 'Van Partible', synopsis: 'A muscular would-be ladies\' man is endlessly rejected in Aron City.', description: 'Pompadour blonde, shirt-black, shades cool-blue, and rejection red', targetHues: [30,55,80,130,200,230], jitterMax: 3, category: 'Cartoon' },
+  { name: 'Ed, Edd n Eddy', year: 1999, director: 'Danny Antonucci', synopsis: 'Three suburban boys scheme their way into jawbreakers and out of trouble in a cul-de-sac.', description: 'Ed-jacket green, Edd beanie red, Eddy yellow, and cul-de-sac sky', targetHues: [0,25,55,130,200,225], jitterMax: 3, category: 'Cartoon' },
+  { name: 'The Smurfs', year: 1981, director: 'Hanna-Barbera', synopsis: 'Blue forest imps outwit the wizard Gargamel and his cat Azrael.', description: 'Smurf blue-skin, Papa red hat, Smurfette yellow, and forest green', targetHues: [0,25,60,180,210,240], jitterMax: 3, category: 'Cartoon' },
+  { name: 'My Little Pony', year: 1986, director: 'Hasbro', synopsis: 'Pastel ponies live in a magic kingdom where colour has meaning.', description: 'Pastel pink, lavender, teal, sky, lemon, and sunset', targetHues: [0,50,170,200,280,330], jitterMax: 3, category: 'Cartoon' },
+  { name: 'Transformers', year: 1984, director: 'Sunbow', synopsis: 'Alien robots that disguise as vehicles wage a civil war over Earth\'s energy.', description: 'Autobot red, Optimus blue, Decepticon purple, and energon gold', targetHues: [0,25,50,200,225,270], jitterMax: 3, category: 'Cartoon' },
+  { name: 'ThunderCats', year: 1985, director: 'Rankin-Bass', synopsis: 'Cat-people refugees on Third Earth fight the mummy-sorcerer Mumm-Ra.', description: 'Lion-O mane, Panthro blue, onesie red, and Sword-of-Omens amber', targetHues: [0,25,45,70,200,230], jitterMax: 3, category: 'Cartoon' },
+  { name: 'Regular Show', year: 2010, director: 'J. G. Quintel', synopsis: 'A blue jay and a raccoon do park maintenance badly and unlock surreal cosmic chaos.', description: 'Mordecai blue-jay, Rigby brown, park green, and Benson-red stapler', targetHues: [0,25,50,115,140,210], jitterMax: 3, category: 'Cartoon' },
+  { name: 'Steven Universe', year: 2013, director: 'Rebecca Sugar', synopsis: 'A half-human boy with a magical gem lives with three alien women who love him.', description: 'Pink-shield, Amethyst violet, Pearl cream, Garnet red, and ocean blue', targetHues: [0,30,55,220,280,330], jitterMax: 3, category: 'Cartoon' },
+  { name: 'Infinity Train', year: 2019, director: 'Owen Dennis', synopsis: 'Passengers with numbers on their hand ride an infinite train of themed cars to resolve themselves.', description: 'Parade train-car primaries — red, yellow, green, cyan, violet, pink', targetHues: [0,50,110,180,240,310], jitterMax: 3, category: 'Cartoon' },
+  { name: 'Primal', year: 2019, director: 'Genndy Tartakovsky', synopsis: 'A caveman and a t-rex bonded by grief survive a prehistoric world together.', description: 'Blood-red, earth-brown, jungle green, and volcano-ember', targetHues: [0,20,40,70,115,140], jitterMax: 3, category: 'Cartoon' },
+  { name: 'Scavengers Reign', year: 2023, director: 'Joseph Bennett & Charles Huettner', synopsis: 'Crash survivors try to reach a rescue beacon across a hostile bioluminescent planet.', description: 'Bioluminescent green, spore violet, and alien amber', targetHues: [60,90,115,140,275,300], jitterMax: 3, category: 'Cartoon' },
+  { name: 'The Midnight Gospel', year: 2020, director: 'Pendleton Ward & Duncan Trussell', synopsis: 'A spacecaster interviews beings in simulated dying universes — each a real philosophical conversation.', description: 'Psychedelic neon — ruby, marigold, lime, cyan, violet, magenta', targetHues: [0,50,100,180,260,310], jitterMax: 4, category: 'Cartoon' },
+  { name: 'Futurama', year: 1999, director: 'Matt Groening', synopsis: 'A pizza delivery boy cryogenically wakes up in the year 3000 and joins an intergalactic delivery crew.', description: 'Leela purple-hair, Bender grey, Fry orange, and Planet Express red', targetHues: [20,45,65,200,230,280], jitterMax: 3, category: 'Cartoon' },
+  { name: 'Rick and Morty', year: 2013, director: 'Justin Roiland & Dan Harmon', synopsis: 'A nihilist scientist and his anxious grandson ruin realities together.', description: 'Portal green, Rick lab-coat blue, Morty yellow, and multiverse red', targetHues: [40,60,130,155,200,225], jitterMax: 3, category: 'Cartoon' },
+  { name: 'The Amazing World of Gumball', year: 2011, director: 'Ben Bocquelet', synopsis: 'A cat-boy and his goldfish brother survive an Elmore household where everything is a different animation style.', description: 'Gumball blue, Darwin orange, Anais pink, and Elmore streetlight', targetHues: [15,35,60,200,225,330], jitterMax: 3, category: 'Cartoon' },
+  { name: 'Aladdin', year: 1992, director: 'Ron Clements & John Musker', synopsis: 'A street-boy with a magic lamp outwits a sorcerer for a princess and his own freedom.', description: 'Genie blue, Jasmine turquoise, Aladdin purple, and cave-gold', targetHues: [40,60,175,200,265,290], jitterMax: 3, category: 'Cartoon' },
+  { name: 'The Lion King', year: 1994, director: 'Roger Allers & Rob Minkoff', synopsis: 'A young lion exiled after his father\'s death must return to claim the pride lands.', description: 'Pride-lands gold, sunset red, Mufasa mane, and savanna ochre', targetHues: [0,25,45,65,85,105], jitterMax: 3, category: 'Cartoon' },
+  { name: 'Beauty and the Beast', year: 1991, director: 'Gary Trousdale & Kirk Wise', synopsis: 'A bookish French girl agrees to stay in an enchanted castle to free her father.', description: 'Belle yellow, Beast sapphire, rose red, and stained-glass violet', targetHues: [0,25,50,200,225,280], jitterMax: 3, category: 'Cartoon' },
+  { name: 'Toy Story', year: 1995, director: 'John Lasseter', synopsis: 'A cowboy doll is threatened when his owner gets a flashy new space-ranger toy.', description: 'Woody yellow-brown, Buzz green-purple, Jessie red, and Andy-sky blue', targetHues: [0,25,55,130,200,280], jitterMax: 3, category: 'Cartoon' },
 ];
 
 // ────────────────────────────────────────────────────────────────────
@@ -1043,6 +1261,107 @@ const FILM_DISTRACTORS = {
   'Courage the Cowardly Dog': ['Ed, Edd n Eddy', 'Johnny Bravo'],
   'Samurai Jack': ['Dexter\'s Laboratory', 'The Powerpuff Girls'],
   'Ren & Stimpy': ['Rocko\'s Modern Life', 'SpongeBob SquarePants'],
+  // TV expansion
+  'Twin Peaks': ['The X-Files', 'Lost'],
+  'Twin Peaks: The Return': ['Legion', 'The Leftovers'],
+  'Mad Men': ['The Americans', 'Halt and Catch Fire'],
+  'Boardwalk Empire': ['Deadwood', 'Peaky Blinders'],
+  'Peaky Blinders': ['Boardwalk Empire', 'The Knick'],
+  'Chernobyl': ['The Terror', 'Catherine the Great'],
+  'Deadwood': ['Boardwalk Empire', 'Westworld'],
+  'Six Feet Under': ['The Leftovers', 'Fleabag'],
+  'Carnivàle': ['Deadwood', 'Rome'],
+  'Hannibal': ['Mindhunter', 'True Detective'],
+  'Killing Eve': ['Fleabag', 'The Americans'],
+  'Fleabag': ['I May Destroy You', 'Killing Eve'],
+  'Russian Doll': ['Legion', 'Maniac'],
+  'Midnight Mass': ['The Haunting of Hill House', 'True Detective'],
+  'Succession': ['Industry', 'Billions'],
+  'Pose': ['Euphoria', 'RuPaul\'s Drag Race'],
+  'I May Destroy You': ['Fleabag', 'Chewing Gum'],
+  'What We Do in the Shadows': ['Wellington Paranormal', 'Our Flag Means Death'],
+  'The Queen\'s Gambit': ['Mad Men', 'Halt and Catch Fire'],
+  'Fargo': ['Barry', 'True Detective'],
+  'Atlanta': ['Master of None', 'Ramy'],
+  'The Americans': ['Mr. Robot', 'Homeland'],
+  'Westworld': ['Devs', 'Severance'],
+  'The Wire': ['Treme', 'We Own This City'],
+  'Tokyo Vice': ['Giri/Haji', 'Tokyo Story'],
+  'Ozark': ['Breaking Bad', 'Bloodline'],
+  'Industry': ['Succession', 'Billions'],
+  'The Underground Railroad': ['12 Years a Slave', 'Watchmen'],
+  'Shōgun': ['The Last Samurai', 'Warrior'],
+  'Mare of Easttown': ['Sharp Objects', 'Broadchurch'],
+  'The White Lotus': ['Succession', 'Big Little Lies'],
+  'Top of the Lake': ['Sharp Objects', 'The Killing'],
+  'Mr Inbetween': ['Barry', 'Breaking Bad'],
+  'The Handmaid\'s Tale': ['The Leftovers', 'Station Eleven'],
+  // Anime expansion
+  'Nausicaä of the Valley of the Wind': ['Castle in the Sky', 'Princess Mononoke'],
+  'Castle in the Sky': ['Nausicaä', 'Howl\'s Moving Castle'],
+  'Kiki\'s Delivery Service': ['Whisper of the Heart', 'Ponyo'],
+  'My Neighbor Totoro': ['Ponyo', 'Kiki\'s Delivery Service'],
+  'Porco Rosso': ['Castle of Cagliostro', 'Nausicaä'],
+  'Howl\'s Moving Castle': ['Spirited Away', 'Castle in the Sky'],
+  'The Wind Rises': ['Grave of the Fireflies', 'Porco Rosso'],
+  'Grave of the Fireflies': ['Only Yesterday', 'Barefoot Gen'],
+  'The Tale of the Princess Kaguya': ['Only Yesterday', 'Pom Poko'],
+  'Whisper of the Heart': ['Only Yesterday', 'Ocean Waves'],
+  'Weathering With You': ['Your Name', '5 Centimeters per Second'],
+  '5 Centimeters per Second': ['The Garden of Words', 'Your Name'],
+  'Millennium Actress': ['Paprika', 'Perfect Blue'],
+  'Tokyo Godfathers': ['Paranoia Agent', 'Perfect Blue'],
+  'Paranoia Agent': ['Perfect Blue', 'Serial Experiments Lain'],
+  'Angel\'s Egg': ['Belladonna of Sadness', 'Metropolis'],
+  'Jin-Roh: The Wolf Brigade': ['Ghost in the Shell', 'Patlabor 2'],
+  'Metropolis': ['Akira', 'Ghost in the Shell'],
+  'Vampire Hunter D: Bloodlust': ['Ninja Scroll', 'Sword of the Stranger'],
+  'Ninja Scroll': ['Vampire Hunter D', 'Samurai Champloo'],
+  'Redline': ['FLCL', 'Dead Leaves'],
+  'Summer Wars': ['The Girl Who Leapt Through Time', 'Wolf Children'],
+  'Wolf Children': ['Summer Wars', 'Mirai'],
+  'A Silent Voice': ['Your Name', 'Liz and the Blue Bird'],
+  'Serial Experiments Lain': ['Paranoia Agent', 'Ghost in the Shell'],
+  'Mushishi': ['Natsume\'s Book of Friends', 'Mononoke'],
+  'Gurren Lagann': ['Kill la Kill', 'Promare'],
+  'Kill la Kill': ['Gurren Lagann', 'FLCL'],
+  'Promare': ['Kill la Kill', 'Gurren Lagann'],
+  'Devilman Crybaby': ['The Tatami Galaxy', 'Night Is Short Walk On Girl'],
+  'The Night Is Short Walk On Girl': ['The Tatami Galaxy', 'Devilman Crybaby'],
+  'Ride Your Wave': ['Mind Game', 'Lu Over the Wall'],
+  'Liz and the Blue Bird': ['A Silent Voice', 'Sound! Euphonium'],
+  'Only Yesterday': ['Whisper of the Heart', 'From Up on Poppy Hill'],
+  'Pom Poko': ['Princess Mononoke', 'The Tale of the Princess Kaguya'],
+  'Patlabor 2: The Movie': ['Ghost in the Shell', 'Jin-Roh'],
+  'Mirai': ['Wolf Children', 'Summer Wars'],
+  // Cartoon expansion
+  'Looney Tunes': ['Tom and Jerry', 'Popeye'],
+  'Mickey Mouse': ['Donald Duck', 'Goofy'],
+  'Popeye the Sailor': ['Betty Boop', 'Felix the Cat'],
+  'The Jetsons': ['The Flintstones', 'Top Cat'],
+  'Yogi Bear': ['The Jetsons', 'Top Cat'],
+  'Rocko\'s Modern Life': ['Ren & Stimpy', 'SpongeBob SquarePants'],
+  'Hey Arnold!': ['Doug', 'Rugrats'],
+  'Doug': ['Hey Arnold!', 'Rugrats'],
+  'Johnny Bravo': ['Dexter\'s Laboratory', 'Cow and Chicken'],
+  'Ed, Edd n Eddy': ['Courage the Cowardly Dog', 'Codename Kids Next Door'],
+  'The Smurfs': ['Care Bears', 'Snorks'],
+  'My Little Pony': ['Care Bears', 'Rainbow Brite'],
+  'Transformers': ['G.I. Joe', 'ThunderCats'],
+  'ThunderCats': ['He-Man', 'Transformers'],
+  'Regular Show': ['Adventure Time', 'The Amazing World of Gumball'],
+  'Steven Universe': ['Adventure Time', 'The Owl House'],
+  'Infinity Train': ['Over the Garden Wall', 'Adventure Time'],
+  'Primal': ['Samurai Jack', 'Scavengers Reign'],
+  'Scavengers Reign': ['Love Death + Robots', 'Primal'],
+  'The Midnight Gospel': ['Adventure Time', 'Tuca & Bertie'],
+  'Futurama': ['Rick and Morty', 'Disenchantment'],
+  'Rick and Morty': ['Futurama', 'Solar Opposites'],
+  'The Amazing World of Gumball': ['Regular Show', 'Adventure Time'],
+  'Aladdin': ['The Lion King', 'Beauty and the Beast'],
+  'The Lion King': ['Tarzan', 'The Jungle Book'],
+  'Beauty and the Beast': ['The Little Mermaid', 'Aladdin'],
+  'Toy Story': ['Monsters Inc.', 'Finding Nemo'],
 };
 
 // Featured one-off overrides for specific dates. These win over the
@@ -1181,7 +1500,9 @@ function themeForDate(dateStr) {
     const dDay = new Date(y, m - 1, day).getDay();
     if (CATEGORY_SCHEDULE[(dDay + 6) % 7] === category) categoryDayCount++;
   }
-  const pickIdx = (categoryDayCount - 1) % shuffled.length;
+  // Positive-modulo so a degenerate (categoryDayCount === 0) case still lands
+  // on a valid index instead of returning CINEMA_PALETTES[shuffled[-1]] = undefined.
+  const pickIdx = ((categoryDayCount - 1) % shuffled.length + shuffled.length) % shuffled.length;
   const result = CINEMA_PALETTES[shuffled[pickIdx]];
   __themeCache.set(dateStr, result);
   return result;
@@ -1660,7 +1981,13 @@ function HowToPlay({ open, onToggle, onReset, showDeg, onToggleShowDeg }) {
       borderRadius: 10,
       overflow: 'hidden',
     }}>
-      <div onClick={onToggle} style={{
+      <div
+        onClick={onToggle}
+        role="button"
+        tabIndex={0}
+        aria-expanded={!!open}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
+        style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         padding: '10px 12px', cursor: 'pointer', userSelect: 'none',
       }}>
@@ -1758,7 +2085,13 @@ function ScoringPanel({ open, onToggle }) {
       borderRadius: 10,
       overflow: 'hidden',
     }}>
-      <div onClick={onToggle} style={{
+      <div
+        onClick={onToggle}
+        role="button"
+        tabIndex={0}
+        aria-expanded={!!open}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
+        style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         padding: '10px 12px', cursor: 'pointer', userSelect: 'none',
       }}>
@@ -2007,7 +2340,13 @@ function FAQPanel({ open, onToggle }) {
       borderRadius: 10,
       overflow: 'hidden',
     }}>
-      <div onClick={onToggle} style={{
+      <div
+        onClick={onToggle}
+        role="button"
+        tabIndex={0}
+        aria-expanded={!!open}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
+        style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         padding: '10px 12px', cursor: 'pointer', userSelect: 'none',
       }}>
@@ -2128,7 +2467,13 @@ function ArchivePanel({ open, onToggle, todayStr, onSelectDate }) {
       borderRadius: 10,
       overflow: 'hidden',
     }}>
-      <div onClick={onToggle} style={{
+      <div
+        onClick={onToggle}
+        role="button"
+        tabIndex={0}
+        aria-expanded={!!open}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
+        style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         padding: '10px 12px', cursor: 'pointer', userSelect: 'none',
       }}>
@@ -2247,7 +2592,10 @@ function ArchivePanel({ open, onToggle, todayStr, onSelectDate }) {
                           fontSize: 9.5, letterSpacing: 1.6, textTransform: 'uppercase',
                           color: HD_MUTED, fontWeight: 600,
                         }}>
-                          <span>{e.category}</span>
+                          {/* Hide category on unplayed days — showing "Thursday
+                              · Anime" narrows the answer pool before the player
+                              has even touched the wheel. */}
+                          <span>{hist ? e.category : '· · ·'}</span>
                           <span style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
                             {e.targetHues.map((h, j) => (
                               <span key={j} style={{
@@ -2656,7 +3004,7 @@ function GuessGrid({ rows, puzzle, currentRow, activeSlotIdx, onSlotTap, onDragS
   );
 }
 
-function TargetRow({ puzzle, guesses, matchedDist, showDeg, fading }) {
+function TargetRow({ puzzle, guesses, matchedDist, showDeg, fading, masked }) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
@@ -2671,12 +3019,17 @@ function TargetRow({ puzzle, guesses, matchedDist, showDeg, fading }) {
         {puzzle.hues.map((h, i) => {
           return (
             <div key={i} style={{ position: 'relative' }}>
+              {/* When FilmGuess is pending we mask the target swatches — visible
+                  target colors let a determined player identify the film BEFORE
+                  picking from the bonus options, defeating the gate. */}
               <div style={{
                 width: 46, height: 46, borderRadius: 10,
-                background: hsbCss(h, puzzle.S, puzzle.B),
-                border: '2px solid rgba(255,255,255,0.18)',
-              }}/>
-              {showDeg && (
+                background: masked ? 'transparent' : hsbCss(h, puzzle.S, puzzle.B),
+                border: masked ? '2px dashed ' + HD_DASHED : '2px solid rgba(255,255,255,0.18)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: HD_MUTED, fontSize: 18, fontWeight: 600,
+              }}>{masked ? '?' : null}</div>
+              {showDeg && !masked && (
                 // Show the target's own hue value (always useful reveal),
                 // not the distance-from-guess (which is 0 on a perfect win).
                 <div style={{
@@ -3313,6 +3666,10 @@ function App() {
   };
 
   const submittingRef = React.useRef(false);
+  // Clear the double-submit lock whenever the player navigates to a different
+  // puzzle (archive jump, practice toggle, midnight rollover). Without this the
+  // ref lingers up to 500ms and eats the first Submit tap on the new puzzle.
+  React.useEffect(() => { submittingRef.current = false; }, [dateStr, practiceMode]);
   const onSubmit = () => {
     if (!canSubmit) return;
     // Prevent a double-tap of Submit from scoring the same row twice while
@@ -3754,11 +4111,20 @@ function App() {
                       ? ? ?
                     </div>
                     <div className="theme-desc" style={{ color: HD_MUTED }}>
-                      Pick your answer below to reveal the film.
+                      {solved
+                        ? 'Pick your answer below to reveal the film.'
+                        : 'Out of guesses — pick below to reveal the film.'}
                     </div>
                   </div>
                 )}
-              <TargetRow puzzle={puzzle} guesses={lastGuesses} matchedDist={lastMatchedDist} showDeg={showDeg} fading={fading && !solved} />
+              <TargetRow
+                puzzle={puzzle}
+                guesses={lastGuesses}
+                matchedDist={lastMatchedDist}
+                showDeg={showDeg}
+                fading={fading && !solved}
+                masked={!practiceMode && filmGuessChoice == null && puzzle.theme && !!FILM_DISTRACTORS[puzzle.theme.name]}
+              />
 
               {/* Daily score card — shown after solve/fail on the daily track.
                   Placed between the target row and the status line so the
