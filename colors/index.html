@@ -203,7 +203,7 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // discarded and a fresh puzzle is generated. v13 bump is justified:
 // every palette has been renamed and four were re-tuned, so
 // saved.themeName and prior feedback colors would mismatch.
-const GEN_VERSION          = 'v23-tv-animation-categories-2026-04-22';
+const GEN_VERSION          = 'v24-anime-split-expansion-2026-04-22';
 const SCORE_HISTORY_KEY    = 'hueday-score-history';
 const DISPUTES_KEY         = 'hueday-disputes';
 
@@ -288,6 +288,27 @@ const MID_HINTS = {
   'Frozen': 'ice',
   'The Little Mermaid': 'under-the-sea',
   'Snow White and the Seven Dwarfs': 'apple',
+  // New TV
+  'Mr. Robot': 'terminal',
+  'Severance': 'clinical',
+  'True Detective': 'swamp',
+  'Mindhunter': 'interview',
+  'Watchmen': 'rorschach',
+  'Dark': 'winden',
+  // New Anime
+  'Cowboy Bebop': 'bebop',
+  'Neon Genesis Evangelion': 'eva',
+  'Ghost in the Shell': 'shell',
+  'Perfect Blue': 'idol',
+  'Belladonna of Sadness': 'pact',
+  'FLCL': 'vespa',
+  // New Cartoon
+  'Tom and Jerry': 'chase',
+  'The Flintstones': 'bedrock',
+  'Teenage Mutant Ninja Turtles': 'turtles',
+  'Courage the Cowardly Dog': 'nowhere',
+  'Samurai Jack': 'samurai',
+  'Ren & Stimpy': 'gross-out',
 };
 
 function midHintFor(theme) {
@@ -408,14 +429,14 @@ const CINEMA_PALETTES = [
     year: 2001, director: 'Hayao Miyazaki',
     synopsis: 'A ten-year-old girl wanders into a spirit world and must work in a bathhouse to save her parents.',
     description: 'Fantasy teal bathhouse, warm red lanterns, and spirit gold',
-    targetHues: [0, 30, 50, 175, 200, 220], jitterMax: 3, category: 'Movies',
+    targetHues: [0, 30, 50, 175, 200, 220], jitterMax: 3, category: 'Anime',
   },
   {
     name: 'Akira',
     year: 1988, director: 'Katsuhiro Otomo',
     synopsis: 'In a neon Neo-Tokyo, a biker gang member develops dangerous telekinetic powers.',
     description: 'Neon red bike, electric blue, and Neo-Tokyo violet',
-    targetHues: [10, 30, 210, 235, 260, 350], jitterMax: 3, category: 'Movies',
+    targetHues: [10, 30, 210, 235, 260, 350], jitterMax: 3, category: 'Anime',
   },
   {
     name: '2001: A Space Odyssey',
@@ -638,70 +659,70 @@ const CINEMA_PALETTES = [
     year: 1997, director: 'Hayao Miyazaki',
     synopsis: 'A young prince caught between forest gods and industrial humans seeks to halt a spreading curse.',
     description: 'Forest green, mountain mist, and blood-curse red',
-    targetHues: [5, 30, 95, 120, 145, 345], jitterMax: 3, category: 'Animation',
+    targetHues: [5, 30, 95, 120, 145, 345], jitterMax: 3, category: 'Anime',
   },
   {
     name: 'Your Name',
     year: 2016, director: 'Makoto Shinkai',
     synopsis: 'A country girl and a Tokyo boy wake up swapping bodies and try to find each other before a comet falls.',
     description: 'Twilight pink, blue hour, and comet-trail orange',
-    targetHues: [15, 40, 195, 225, 280, 330], jitterMax: 3, category: 'Animation',
+    targetHues: [15, 40, 195, 225, 280, 330], jitterMax: 3, category: 'Anime',
   },
   {
     name: 'Paprika',
     year: 2006, director: 'Satoshi Kon',
     synopsis: 'A therapist uses a device to enter patients\' dreams, until someone starts weaponising it.',
     description: 'Parade primaries — red, yellow, green, cyan, violet, magenta',
-    targetHues: [0, 50, 100, 150, 200, 280], jitterMax: 4, category: 'Animation',
+    targetHues: [0, 50, 100, 150, 200, 280], jitterMax: 4, category: 'Anime',
   },
   {
     name: 'Mind Game',
     year: 2004, director: 'Masaaki Yuasa',
     synopsis: 'A loser, shot dead, bargains with God and lives a second life inside a whale with the girl he loves.',
     description: 'Cel-shock primary and neon psychedelia',
-    targetHues: [0, 55, 110, 165, 220, 285], jitterMax: 4, category: 'Animation',
+    targetHues: [0, 55, 110, 165, 220, 285], jitterMax: 4, category: 'Anime',
   },
   {
     name: 'The Red Turtle',
     year: 2016, director: 'Michaël Dudok de Wit',
     synopsis: 'A castaway on a desert island is prevented from escaping by a mysterious red turtle.',
     description: 'Sand, ocean, and a single insistent blood-red',
-    targetHues: [25, 55, 85, 175, 205, 235], jitterMax: 3, category: 'Animation',
+    targetHues: [25, 55, 85, 175, 205, 235], jitterMax: 3, category: 'Cartoon',
   },
   {
     name: 'Wolfwalkers',
     year: 2020, director: 'Tomm Moore',
     synopsis: 'In 1650s Kilkenny, a hunter\'s daughter befriends a girl said to turn into a wolf at night.',
     description: 'Celtic forest, copper-red hair, and lantern gold',
-    targetHues: [0, 20, 90, 115, 140, 160], jitterMax: 3, category: 'Animation',
+    targetHues: [0, 20, 90, 115, 140, 160], jitterMax: 3, category: 'Cartoon',
   },
   {
     name: 'Song of the Sea',
     year: 2014, director: 'Tomm Moore',
     synopsis: 'An Irish boy discovers his little sister is a selkie who must find her voice to save the fairies.',
     description: 'Celtic sea blue, lighthouse gold, and myth-violet',
-    targetHues: [20, 45, 180, 210, 240, 275], jitterMax: 3, category: 'Animation',
+    targetHues: [20, 45, 180, 210, 240, 275], jitterMax: 3, category: 'Cartoon',
   },
   {
     name: 'Tekkonkinkreet',
     year: 2006, director: 'Michael Arias',
     synopsis: 'Two orphan boys defend their dying Japanese city from yakuza and a ruthless developer.',
     description: 'Tin-town orange, urban teal, and street neon',
-    targetHues: [15, 40, 65, 185, 210, 235], jitterMax: 3, category: 'Animation',
+    targetHues: [15, 40, 65, 185, 210, 235], jitterMax: 3, category: 'Anime',
   },
   {
     name: 'Mary and Max',
     year: 2009, director: 'Adam Elliot',
     synopsis: 'A lonely Australian girl and a morbidly obese New Yorker become pen pals for 20 years.',
     description: 'Claymation beige, postage red, and New York grey-blue',
-    targetHues: [25, 45, 75, 195, 220, 345], jitterMax: 3, category: 'Animation',
+    targetHues: [25, 45, 75, 195, 220, 345], jitterMax: 3, category: 'Cartoon',
   },
   {
     name: 'The Secret of Kells',
     year: 2009, director: 'Tomm Moore',
     synopsis: 'A young monk helps complete a legendary illuminated manuscript while Vikings approach.',
     description: 'Illuminated manuscript green, gold leaf, and vellum red',
-    targetHues: [30, 55, 90, 140, 165, 355], jitterMax: 3, category: 'Animation',
+    targetHues: [30, 55, 90, 140, 165, 355], jitterMax: 3, category: 'Cartoon',
   },
 
   // ── Cartoon (iconic, literal character palettes) ───────────────────
@@ -789,6 +810,138 @@ const CINEMA_PALETTES = [
     description: 'Apple red, gold button, yellow skirt, forest green, royal blue, lips pink',
     targetHues: [0, 30, 55, 120, 215, 340], jitterMax: 3, category: 'Cartoon',
   },
+
+  // ── TV expansion ───────────────────────────────────────────────────
+  {
+    name: 'Mr. Robot',
+    year: 2015, director: 'Sam Esmail',
+    synopsis: 'A cybersecurity engineer with social anxiety is recruited by an anarchist to bring down a global corporation.',
+    description: 'Terminal green, hacker red, and alienated cyan',
+    targetHues: [0, 60, 90, 120, 145, 190], jitterMax: 3, category: 'TV',
+  },
+  {
+    name: 'Severance',
+    year: 2022, director: 'Dan Erickson',
+    synopsis: 'Employees of a mysterious corporation undergo a procedure that severs their work memories from their home selves.',
+    description: 'Clinical beige, sickly yellow, and soulless blue',
+    targetHues: [35, 60, 180, 205, 225, 250], jitterMax: 3, category: 'TV',
+  },
+  {
+    name: 'True Detective',
+    year: 2014, director: 'Nic Pizzolatto',
+    synopsis: 'Two Louisiana state detectives investigate a ritualistic murder across two decades.',
+    description: 'Swamp yellow, pine green, and bayou rust',
+    targetHues: [40, 60, 85, 110, 140, 195], jitterMax: 3, category: 'TV',
+  },
+  {
+    name: 'Mindhunter',
+    year: 2017, director: 'David Fincher',
+    synopsis: 'Two FBI agents in 1977 interview imprisoned serial killers to understand the criminal mind.',
+    description: '1977 tobacco beige, yellow wallpaper, and institutional brown',
+    targetHues: [25, 45, 65, 85, 105, 200], jitterMax: 3, category: 'TV',
+  },
+  {
+    name: 'Watchmen',
+    year: 2019, director: 'Damon Lindelof',
+    synopsis: 'In an alternate Tulsa, masked police hunt a white-supremacist militia while history catches up with them.',
+    description: 'Rorschach purple, hooded justice yellow, and Dr. Manhattan cyan',
+    targetHues: [55, 170, 200, 280, 320, 350], jitterMax: 3, category: 'TV',
+  },
+  {
+    name: 'Dark',
+    year: 2017, director: 'Baran bo Odar',
+    synopsis: 'Four families in a small German town unravel a time-travel conspiracy spanning generations.',
+    description: 'Winden forest green, cave rust, and nuclear plant ochre',
+    targetHues: [15, 35, 60, 100, 140, 225], jitterMax: 3, category: 'TV',
+  },
+
+  // ── Anime (feature & seminal series) ───────────────────────────────
+  {
+    name: 'Cowboy Bebop',
+    year: 1998, director: 'Shinichirō Watanabe',
+    synopsis: 'A crew of bounty hunters chase their pasts and their next meal across a jazz-noir future solar system.',
+    description: 'Bebop yellow, Spike blue, and crimson planet-rust',
+    targetHues: [20, 45, 65, 200, 230, 260], jitterMax: 3, category: 'Anime',
+  },
+  {
+    name: 'Neon Genesis Evangelion',
+    year: 1995, director: 'Hideaki Anno',
+    synopsis: 'A reluctant teenage boy is conscripted to pilot a giant bio-mechanical unit against world-ending angels.',
+    description: 'Eva-01 purple, ATF green, LCL red, and dive-suit magenta',
+    targetHues: [0, 25, 110, 135, 280, 310], jitterMax: 3, category: 'Anime',
+  },
+  {
+    name: 'Ghost in the Shell',
+    year: 1995, director: 'Mamoru Oshii',
+    synopsis: 'A cyborg public-security officer hunts a ghost-hacker through a data-soaked future Hong Kong.',
+    description: 'Neo-Tokyo cyan, neon magenta, and wetwire violet',
+    targetHues: [10, 180, 210, 270, 305, 335], jitterMax: 3, category: 'Anime',
+  },
+  {
+    name: 'Perfect Blue',
+    year: 1997, director: 'Satoshi Kon',
+    synopsis: 'A J-pop idol turned actress is stalked by a fan as her own grip on reality begins to slip.',
+    description: 'Stage-red, blood-smear crimson, and dissociation cream',
+    targetHues: [0, 20, 45, 195, 220, 340], jitterMax: 3, category: 'Anime',
+  },
+  {
+    name: 'Belladonna of Sadness',
+    year: 1973, director: 'Eiichi Yamamoto',
+    synopsis: 'A medieval peasant, violated by her lord, makes a pact with the devil and becomes a revolutionary.',
+    description: 'Watercolour crimson, witch-gold, and psychedelic violet',
+    targetHues: [5, 30, 50, 75, 320, 345], jitterMax: 3, category: 'Anime',
+  },
+  {
+    name: 'FLCL',
+    year: 2000, director: 'Kazuya Tsurumaki',
+    synopsis: 'A vespa-riding alien crashes into a dull Japanese town and a boy starts growing robots from his head.',
+    description: 'Haruko pink, Naota red, Canti blue, and banana yellow',
+    targetHues: [15, 40, 135, 195, 265, 325], jitterMax: 3, category: 'Anime',
+  },
+
+  // ── Cartoon expansion (famous & literal) ───────────────────────────
+  {
+    name: 'Tom and Jerry',
+    year: 1940, director: 'William Hanna & Joseph Barbera',
+    synopsis: 'A blue cat relentlessly chases a brown mouse around a household they mostly share in silence.',
+    description: 'Tom blue-grey, Jerry brown, kitchen yellow, and chase-scene red',
+    targetHues: [30, 50, 75, 210, 235, 335], jitterMax: 3, category: 'Cartoon',
+  },
+  {
+    name: 'The Flintstones',
+    year: 1960, director: 'Hanna-Barbera',
+    synopsis: 'A modern Stone Age family works, yabba-dabba-doos, and bowls its way through prehistoric suburbia.',
+    description: 'Fred orange, Wilma white-on-red, Barney brown, and Bedrock green',
+    targetHues: [10, 30, 55, 145, 205, 285], jitterMax: 3, category: 'Cartoon',
+  },
+  {
+    name: 'Teenage Mutant Ninja Turtles',
+    year: 1987, director: 'Fred Wolf',
+    synopsis: 'Four anthropomorphic turtles trained in ninjutsu fight crime and eat pizza in the New York sewers.',
+    description: 'Turtle green, Raph red, Leo blue, Donnie purple, Mikey orange, April yellow',
+    targetHues: [0, 25, 130, 200, 280, 340], jitterMax: 3, category: 'Cartoon',
+  },
+  {
+    name: 'Courage the Cowardly Dog',
+    year: 1999, director: 'John R. Dilworth',
+    synopsis: 'A small pink dog defends his elderly owners from supernatural threats in the middle of Nowhere, Kansas.',
+    description: 'Courage pink, Eustace green, Muriel violet, and Kansas-farm brown',
+    targetHues: [0, 25, 115, 145, 275, 310], jitterMax: 3, category: 'Cartoon',
+  },
+  {
+    name: 'Samurai Jack',
+    year: 2001, director: 'Genndy Tartakovsky',
+    synopsis: 'A samurai hurled into a dystopian future by a shape-shifting demon seeks a way back to his own time.',
+    description: 'Jack\'s red gi, green forest, blue sky, and shogun-brown',
+    targetHues: [0, 25, 120, 145, 200, 260], jitterMax: 3, category: 'Cartoon',
+  },
+  {
+    name: 'Ren & Stimpy',
+    year: 1991, director: 'John Kricfalusi',
+    synopsis: 'A neurotic chihuahua and a dim-witted cat endure increasingly surreal everyday disasters.',
+    description: 'Ren red, Stimpy pink, gross-out green, and gag-yellow',
+    targetHues: [0, 25, 50, 130, 290, 330], jitterMax: 3, category: 'Cartoon',
+  },
 ];
 
 // ────────────────────────────────────────────────────────────────────
@@ -869,6 +1022,27 @@ const FILM_DISTRACTORS = {
   'Frozen': ['Tangled', 'Moana'],
   'The Little Mermaid': ['Beauty and the Beast', 'Aladdin'],
   'Snow White and the Seven Dwarfs': ['Cinderella', 'Sleeping Beauty'],
+  // New TV
+  'Mr. Robot': ['Halt and Catch Fire', 'Person of Interest'],
+  'Severance': ['The Lobster', 'Counterpart'],
+  'True Detective': ['Sharp Objects', 'Broadchurch'],
+  'Mindhunter': ['Zodiac', 'The Alienist'],
+  'Watchmen': ['The Leftovers', 'Lovecraft Country'],
+  'Dark': ['Stranger Things', 'The OA'],
+  // New Anime
+  'Cowboy Bebop': ['Samurai Champloo', 'Space Dandy'],
+  'Neon Genesis Evangelion': ['RahXephon', 'Serial Experiments Lain'],
+  'Ghost in the Shell': ['Akira', 'Paprika'],
+  'Perfect Blue': ['Paprika', 'Millennium Actress'],
+  'Belladonna of Sadness': ['The Color of Pomegranates', 'Fantastic Planet'],
+  'FLCL': ['The Tatami Galaxy', 'Devilman Crybaby'],
+  // New Cartoon
+  'Tom and Jerry': ['Looney Tunes', 'Popeye'],
+  'The Flintstones': ['The Jetsons', 'Yogi Bear'],
+  'Teenage Mutant Ninja Turtles': ['Transformers', 'Thundercats'],
+  'Courage the Cowardly Dog': ['Ed, Edd n Eddy', 'Johnny Bravo'],
+  'Samurai Jack': ['Dexter\'s Laboratory', 'The Powerpuff Girls'],
+  'Ren & Stimpy': ['Rocko\'s Modern Life', 'SpongeBob SquarePants'],
 };
 
 // Featured one-off overrides for specific dates. These win over the
@@ -960,10 +1134,10 @@ function minAdjacentGap(hues) {
 // Weekday → category rotation. Each weekday draws from a fixed category
 // pool, shuffled monthly within that category. Gives daily variety
 // instead of one flat shuffle across all palettes.
-//   Mon  Tue  Wed  Thu        Fri      Sat  Sun
-// [Movies, TV, Movies, Animation, Cartoon, Movies, TV]
+//   Mon  Tue  Wed  Thu    Fri      Sat  Sun
+// [Movies, TV, Movies, Anime, Cartoon, Movies, TV]
 // JS Date.getDay(): 0=Sun..6=Sat. We remap to 0=Mon..6=Sun.
-const CATEGORY_SCHEDULE = ['Movies', 'TV', 'Movies', 'Animation', 'Cartoon', 'Movies', 'TV'];
+const CATEGORY_SCHEDULE = ['Movies', 'TV', 'Movies', 'Anime', 'Cartoon', 'Movies', 'TV'];
 
 function categoryForDate(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
