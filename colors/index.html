@@ -10,13 +10,14 @@
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Hueday" />
-<!-- App icon — inline SVG data URL. 6 rainbow bars on dark background,
-     matches the palette-poster reveal card visually. Covers Safari,
-     Chrome, and generic bookmarks in one file. -->
-<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxODAgMTgwIiB3aWR0aD0iMTgwIiBoZWlnaHQ9IjE4MCI+CiAgPHJlY3Qgd2lkdGg9IjE4MCIgaGVpZ2h0PSIxODAiIHJ4PSIzOCIgZmlsbD0iIzE0MTQxNCIvPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDI0IDI2KSI+CiAgICA8cmVjdCB3aWR0aD0iMTMyIiBoZWlnaHQ9IjIwIiByeD0iNSIgZmlsbD0iI2Q5MmIyYiIvPgogICAgPHJlY3QgeT0iMjIiIHdpZHRoPSIxMzIiIGhlaWdodD0iMjAiIHJ4PSI1IiBmaWxsPSIjZTI4YjFmIi8+CiAgICA8cmVjdCB5PSI0NCIgd2lkdGg9IjEzMiIgaGVpZ2h0PSIyMCIgcng9IjUiIGZpbGw9IiNkOWQ5MmIiLz4KICAgIDxyZWN0IHk9IjY2IiB3aWR0aD0iMTMyIiBoZWlnaHQ9IjIwIiByeD0iNSIgZmlsbD0iIzJiZDk2YiIvPgogICAgPHJlY3QgeT0iODgiIHdpZHRoPSIxMzIiIGhlaWdodD0iMjAiIHJ4PSI1IiBmaWxsPSIjMmI5YmQ5Ii8+CiAgICA8cmVjdCB5PSIxMTAiIHdpZHRoPSIxMzIiIGhlaWdodD0iMjAiIHJ4PSI1IiBmaWxsPSIjOWIyYmQ5Ii8+CiAgPC9nPgo8L3N2Zz4K" />
+<!-- App icon:
+     - apple-touch-icon MUST be a real PNG URL (iOS refuses SVG data URLs)
+     - favicon in SVG for sharp desktop tab rendering
+     - manifest references the same PNG for Android home-screen -->
+<link rel="apple-touch-icon" href="icon.png" />
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxODAgMTgwIiB3aWR0aD0iMTgwIiBoZWlnaHQ9IjE4MCI+CiAgPHJlY3Qgd2lkdGg9IjE4MCIgaGVpZ2h0PSIxODAiIHJ4PSIzOCIgZmlsbD0iIzE0MTQxNCIvPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDI0IDI2KSI+CiAgICA8cmVjdCB3aWR0aD0iMTMyIiBoZWlnaHQ9IjIwIiByeD0iNSIgZmlsbD0iI2Q5MmIyYiIvPgogICAgPHJlY3QgeT0iMjIiIHdpZHRoPSIxMzIiIGhlaWdodD0iMjAiIHJ4PSI1IiBmaWxsPSIjZTI4YjFmIi8+CiAgICA8cmVjdCB5PSI0NCIgd2lkdGg9IjEzMiIgaGVpZ2h0PSIyMCIgcng9IjUiIGZpbGw9IiNkOWQ5MmIiLz4KICAgIDxyZWN0IHk9IjY2IiB3aWR0aD0iMTMyIiBoZWlnaHQ9IjIwIiByeD0iNSIgZmlsbD0iIzJiZDk2YiIvPgogICAgPHJlY3QgeT0iODgiIHdpZHRoPSIxMzIiIGhlaWdodD0iMjAiIHJ4PSI1IiBmaWxsPSIjMmI5YmQ5Ii8+CiAgICA8cmVjdCB5PSIxMTAiIHdpZHRoPSIxMzIiIGhlaWdodD0iMjAiIHJ4PSI1IiBmaWxsPSIjOWIyYmQ5Ii8+CiAgPC9nPgo8L3N2Zz4K" />
-<!-- Inline PWA manifest (base64 data URL — keeps the single-file constraint). Icon now included. -->
-<link rel="manifest" href="data:application/manifest+json;charset=utf-8;base64,eyJuYW1lIjoiSHVlZGF5Iiwic2hvcnRfbmFtZSI6Ikh1ZWRheSIsImRlc2NyaXB0aW9uIjoiQSBkYWlseSBjb2xvciBwdXp6bGUgaW5zcGlyZWQgYnkgY2luZW1hIHBhbGV0dGVzIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzE0MTQxNCIsInRoZW1lX2NvbG9yIjoiIzE0MTQxNCIsInN0YXJ0X3VybCI6Ii4vIiwib3JpZW50YXRpb24iOiJwb3J0cmFpdCIsImljb25zIjpbeyJzcmMiOiJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUI0Yld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNakF3TUM5emRtY2lJSFpwWlhkQ2IzZzlJakFnTUNBeE9EQWdNVGd3SWlCM2FXUjBhRDBpTVRnd0lpQm9aV2xuYUhROUlqRTRNQ0krQ2lBZ1BISmxZM1FnZDJsa2RHZzlJakU0TUNJZ2FHVnBaMmgwUFNJeE9EQWlJSEo0UFNJek9DSWdabWxzYkQwaUl6RTBNVFF4TkNJdlBnb2dJRHhuSUhSeVlXNXpabTl5YlQwaWRISmhibk5zWVhSbEtESTBJREkyS1NJK0NpQWdJQ0E4Y21WamRDQjNhV1IwYUQwaU1UTXlJaUJvWldsbmFIUTlJakl3SWlCeWVEMGlOU0lnWm1sc2JEMGlJMlE1TW1JeVlpSXZQZ29nSUNBZ1BISmxZM1FnZVQwaU1qSWlJSGRwWkhSb1BTSXhNeklpSUdobGFXZG9kRDBpTWpBaUlISjRQU0kxSWlCbWFXeHNQU0lqWlRJNFlqRm1JaTgrQ2lBZ0lDQThjbVZqZENCNVBTSTBOQ0lnZDJsa2RHZzlJakV6TWlJZ2FHVnBaMmgwUFNJeU1DSWdjbmc5SWpVaUlHWnBiR3c5SWlOa09XUTVNbUlpTHo0S0lDQWdJRHh5WldOMElIazlJalkySWlCM2FXUjBhRDBpTVRNeUlpQm9aV2xuYUhROUlqSXdJaUJ5ZUQwaU5TSWdabWxzYkQwaUl6SmlaRGsyWWlJdlBnb2dJQ0FnUEhKbFkzUWdlVDBpT0RnaUlIZHBaSFJvUFNJeE16SWlJR2hsYVdkb2REMGlNakFpSUhKNFBTSTFJaUJtYVd4c1BTSWpNbUk1WW1RNUlpOCtDaUFnSUNBOGNtVmpkQ0I1UFNJeE1UQWlJSGRwWkhSb1BTSXhNeklpSUdobGFXZG9kRDBpTWpBaUlISjRQU0kxSWlCbWFXeHNQU0lqT1dJeVltUTVJaTgrQ2lBZ1BDOW5QZ284TDNOMlp6NEsiLCJzaXplcyI6ImFueSIsInR5cGUiOiJpbWFnZS9zdmcreG1sIiwicHVycG9zZSI6ImFueSBtYXNrYWJsZSJ9XX0K" />
+<!-- PWA manifest (inline base64) — references icon.png for Android maskable icons. -->
+<link rel="manifest" href="data:application/manifest+json;charset=utf-8;base64,eyJuYW1lIjoiSHVlZGF5Iiwic2hvcnRfbmFtZSI6Ikh1ZWRheSIsImRlc2NyaXB0aW9uIjoiQSBkYWlseSBjb2xvciBwdXp6bGUgaW5zcGlyZWQgYnkgY2luZW1hIHBhbGV0dGVzIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzE0MTQxNCIsInRoZW1lX2NvbG9yIjoiIzE0MTQxNCIsInN0YXJ0X3VybCI6Ii4vIiwib3JpZW50YXRpb24iOiJwb3J0cmFpdCIsImljb25zIjpbeyJzcmMiOiJpY29uLnBuZyIsInNpemVzIjoiNTEyeDUxMiIsInR5cGUiOiJpbWFnZS9wbmciLCJwdXJwb3NlIjoiYW55IG1hc2thYmxlIn1dfQo=" />
 <!-- Cache-busting: prototype iterates fast; we want fresh HTML every load. -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
@@ -154,7 +155,7 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // discarded and a fresh puzzle is generated. v13 bump is justified:
 // every palette has been renamed and four were re-tuned, so
 // saved.themeName and prior feedback colors would mismatch.
-const GEN_VERSION          = 'v18-app-icon-2026-04-22';
+const GEN_VERSION          = 'v19-png-icon-2026-04-22';
 const SCORE_HISTORY_KEY    = 'hueday-score-history';
 
 // ────────────────────────────────────────────────────────────────────
