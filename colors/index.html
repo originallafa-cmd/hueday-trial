@@ -143,7 +143,7 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // discarded and a fresh puzzle is generated. v13 bump is justified:
 // every palette has been renamed and four were re-tuned, so
 // saved.themeName and prior feedback colors would mismatch.
-const GEN_VERSION          = 'v13-polish-2026-04-22';
+const GEN_VERSION          = 'v14-themely-inspired-rich-reveal-2026-04-22';
 const SCORE_HISTORY_KEY    = 'hueday-score-history';
 
 // ────────────────────────────────────────────────────────────────────
@@ -155,37 +155,37 @@ const SCORE_HISTORY_KEY    = 'hueday-score-history';
 // track. NOT a hint penalty — automatic and universal. Words chosen to
 // evoke the palette's mood WITHOUT spoiling the movie title.
 const MID_HINTS = {
-  'Neon Rain': 'neon',
-  'Summer Camp': 'mustard',
-  'Fury Dust': 'dust',
-  'Pastel Hotel': 'pastels',
-  'Paris Kitchen': 'warmth',
-  'Neon Highway': 'synth',
-  'Sunset Boulevard': 'dusk',
-  'Warm Distance': 'peach',
-  'Code Cascade': 'cascade',
-  'Gilded Dream': 'gilded',
-  'Diner Noir': 'diner',
-  'Overlook Halls': 'dread',
-  'Blue Silence': 'restraint',
-  'Hong Kong Rain': 'longing',
-  'Bathhouse': 'spirit',
-  'Neo-Tokyo': 'velocity',
-  'Monolith': 'cosmic',
-  'Italian Summer': 'summer',
-  'Bonfire Portrait': 'bonfire',
-  'Desert Messiah': 'sand',
-  'Runway': 'glare',
-  'Basement': 'basement',
-  'Osage Earth': 'earth',
-  'Inverse': 'inverted',
-  'Multiverse': 'multiverse',
-  'Dispatch': 'whimsy',
-  'Tokyo Neon': 'karaoke',
-  'Milk Bar': 'clinical',
-  'Beach Memory': 'memory',
-  'Stairwell': 'stairwell',
-  'Pink Plastic': 'plastic',
+  'Blade Runner 2049': 'neon',
+  'Moonrise Kingdom': 'mustard',
+  'Mad Max: Fury Road': 'dust',
+  'The Grand Budapest Hotel': 'pastels',
+  'Amélie': 'warmth',
+  'Drive': 'synth',
+  'La La Land': 'dusk',
+  'Her': 'peach',
+  'The Matrix': 'monochrome',
+  'Inception': 'gilded',
+  'Pulp Fiction': 'diner',
+  'The Shining': 'dread',
+  'Drive My Car': 'restraint',
+  'In the Mood for Love': 'longing',
+  'Spirited Away': 'spirit',
+  'Akira': 'velocity',
+  '2001: A Space Odyssey': 'cosmic',
+  'Call Me By Your Name': 'summer',
+  'Portrait of a Lady on Fire': 'bonfire',
+  'Dune (2021)': 'sand',
+  'The Neon Demon': 'glare',
+  'Parasite': 'basement',
+  'Killers of the Flower Moon': 'earth',
+  'Tenet': 'inverted',
+  'Everything Everywhere All at Once': 'multiverse',
+  'The French Dispatch': 'whimsy',
+  'Lost in Translation': 'karaoke',
+  'A Clockwork Orange': 'clinical',
+  'Eternal Sunshine of the Spotless Mind': 'memory',
+  'Joker': 'stairwell',
+  'Barbie': 'plastic',
 };
 
 function midHintFor(theme) {
@@ -197,196 +197,269 @@ function midHintFor(theme) {
 // hues + a small ±jitter applied per day. No stratification, no
 // widening — the targets ARE the targets. Every palette is verified
 // to have ≥18° adjacent separation on the wheel (wrap-aware). Names
-// are generic / trademark-safe by design.
+// are REAL film titles (this remains a prototype — we use real titles
+// for testing; a shipping version would rename to avoid trademark).
+// Each palette also carries rich metadata (year, director, synopsis)
+// used by the reveal card and the FilmGuess bonus challenge.
 // ────────────────────────────────────────────────────────────────────
 const CINEMA_PALETTES = [
   {
-    name: 'Neon Rain',
+    name: 'Blade Runner 2049',
+    year: 2017, director: 'Denis Villeneuve',
+    synopsis: 'A replicant blade runner uncovers a secret that could destabilize the order of things.',
     description: 'Neon haze of orange, cyan, and bruised magenta',
-    targetHues: [18, 40, 185, 210, 290, 325],
-    jitterMax: 4,
+    targetHues: [18, 40, 185, 210, 290, 325], jitterMax: 4,
   },
   {
-    name: 'Summer Camp',
+    name: 'Moonrise Kingdom',
+    year: 2012, director: 'Wes Anderson',
+    synopsis: 'Two twelve-year-olds run away together on a New England island in 1965.',
     description: 'Warm mustard, canvas tan, and dusty teal summer camp',
-    targetHues: [30, 55, 85, 175, 200, 280],
-    jitterMax: 3,
+    targetHues: [30, 55, 85, 175, 200, 280], jitterMax: 3,
   },
   {
-    name: 'Fury Dust',
+    name: 'Mad Max: Fury Road',
+    year: 2015, director: 'George Miller',
+    synopsis: 'A woman rebels against a tyrant, fleeing across a post-apocalyptic desert in a converted war rig.',
     description: 'Scorched orange desert against deep teal shadow',
-    targetHues: [15, 35, 60, 180, 200, 225],
-    jitterMax: 3,
+    targetHues: [15, 35, 60, 180, 200, 225], jitterMax: 3,
   },
   {
-    name: 'Pastel Hotel',
+    name: 'The Grand Budapest Hotel',
+    year: 2014, director: 'Wes Anderson',
+    synopsis: 'A legendary concierge and his lobby boy become entangled in a decades-spanning caper.',
     description: 'Confectionery pinks, lavenders, and soft ruby reds',
-    targetHues: [340, 10, 30, 60, 280, 300],
-    jitterMax: 3,
+    targetHues: [340, 10, 30, 60, 280, 300], jitterMax: 3,
   },
   {
-    name: 'Paris Kitchen',
+    name: 'Amélie',
+    year: 2001, director: 'Jean-Pierre Jeunet',
+    synopsis: 'A shy Parisian waitress secretly orchestrates small joys for the people around her.',
     description: 'Emerald green, crimson red, and a warm Parisian yellow',
-    targetHues: [355, 20, 45, 70, 140, 165],
-    jitterMax: 3,
+    targetHues: [355, 20, 45, 70, 140, 165], jitterMax: 3,
   },
   {
-    name: 'Neon Highway',
+    name: 'Drive',
+    year: 2011, director: 'Nicolas Winding Refn',
+    synopsis: 'A Hollywood stunt driver moonlights as a getaway driver and gets pulled into a deadly heist.',
     description: 'Hot pink neon, cool teal, and midnight synthwave purple',
-    targetHues: [25, 180, 275, 300, 330, 355],
-    jitterMax: 3,
+    targetHues: [25, 180, 275, 300, 330, 355], jitterMax: 3,
   },
   {
-    name: 'Sunset Boulevard',
+    name: 'La La Land',
+    year: 2016, director: 'Damien Chazelle',
+    synopsis: 'A jazz pianist and an aspiring actress chase their dreams and each other across Los Angeles.',
     description: 'Sunset yellow, navy twilight, and magenta stage lights',
-    targetHues: [20, 45, 220, 250, 320, 350],
-    jitterMax: 3,
+    targetHues: [20, 45, 220, 250, 320, 350], jitterMax: 3,
   },
   {
-    name: 'Warm Distance',
+    name: 'Her',
+    year: 2013, director: 'Spike Jonze',
+    synopsis: 'A lonely writer develops an unlikely relationship with an AI operating system.',
     description: 'Soft coral, warm peach, and aching violet intimacy',
-    targetHues: [15, 35, 55, 270, 295, 320],
-    jitterMax: 3,
+    targetHues: [15, 35, 55, 270, 295, 320], jitterMax: 3,
   },
   {
-    name: 'Code Cascade',
-    description: 'Six shades of cascading code-green',
-    targetHues: [85, 105, 125, 145, 165, 185],
-    jitterMax: 3,
+    name: 'The Matrix',
+    year: 1999, director: 'The Wachowskis',
+    synopsis: 'A hacker discovers that reality is a simulation and joins a rebellion against its machines.',
+    description: 'Six shades of code-green cascading down the screen',
+    targetHues: [85, 105, 125, 145, 165, 185], jitterMax: 3,
   },
   {
-    name: 'Gilded Dream',
+    name: 'Inception',
+    year: 2010, director: 'Christopher Nolan',
+    synopsis: 'A thief who steals secrets through dreams is given one last shot at redemption.',
     description: 'Gilded gold, burnt umber, and cold dreamscape teal',
-    targetHues: [25, 45, 65, 180, 200, 220],
-    jitterMax: 3,
+    targetHues: [25, 45, 65, 180, 200, 220], jitterMax: 3,
   },
   {
-    name: 'Diner Noir',
-    description: 'Smoky red, ochre lights, warm noir',
-    targetHues: [340, 0, 20, 40, 60, 80],
-    jitterMax: 3,
+    name: 'Pulp Fiction',
+    year: 1994, director: 'Quentin Tarantino',
+    synopsis: 'The lives of hitmen, a boxer, and a diner couple intertwine across four interlocking stories.',
+    description: 'Smoky red, ochre diner light, and warm noir',
+    targetHues: [340, 0, 20, 40, 60, 80], jitterMax: 3,
   },
   {
-    name: 'Overlook Halls',
+    name: 'The Shining',
+    year: 1980, director: 'Stanley Kubrick',
+    synopsis: 'A family takes a caretaker job at an isolated hotel; supernatural forces unravel the father.',
     description: 'Carpet crimson, overlook yellow, and navy hallway dread',
-    targetHues: [5, 30, 55, 80, 215, 240],
-    jitterMax: 3,
+    targetHues: [5, 30, 55, 80, 215, 240], jitterMax: 3,
   },
   {
-    name: 'Blue Silence',
+    name: 'Drive My Car',
+    year: 2021, director: 'Ryûsuke Hamaguchi',
+    synopsis: 'A grieving actor stages a multilingual Chekhov and drives toward an old wound.',
     description: 'Muted blue-grey, deep red lacquer, and warm cream silence',
-    targetHues: [20, 45, 195, 220, 260, 355],
-    jitterMax: 3,
+    targetHues: [20, 45, 195, 220, 260, 355], jitterMax: 3,
   },
   {
-    name: 'Hong Kong Rain',
+    name: 'In the Mood for Love',
+    year: 2000, director: 'Wong Kar-wai',
+    synopsis: 'Two neighbors in 1960s Hong Kong suspect their spouses of an affair, and quietly fall for each other.',
     description: 'Saturated red cheongsam, warm orange, and deep jade green',
-    targetHues: [10, 30, 140, 160, 185, 345],
-    jitterMax: 3,
+    targetHues: [10, 30, 140, 160, 185, 345], jitterMax: 3,
   },
   {
-    name: 'Bathhouse',
+    name: 'Spirited Away',
+    year: 2001, director: 'Hayao Miyazaki',
+    synopsis: 'A ten-year-old girl wanders into a spirit world and must work in a bathhouse to save her parents.',
     description: 'Fantasy teal bathhouse, warm red lanterns, and spirit gold',
-    targetHues: [0, 30, 50, 175, 200, 220],
-    jitterMax: 3,
+    targetHues: [0, 30, 50, 175, 200, 220], jitterMax: 3,
   },
   {
-    name: 'Neo-Tokyo',
+    name: 'Akira',
+    year: 1988, director: 'Katsuhiro Otomo',
+    synopsis: 'In a neon Neo-Tokyo, a biker gang member develops dangerous telekinetic powers.',
     description: 'Neon red bike, electric blue, and Neo-Tokyo violet',
-    targetHues: [10, 30, 210, 235, 260, 350],
-    jitterMax: 3,
+    targetHues: [10, 30, 210, 235, 260, 350], jitterMax: 3,
   },
   {
-    name: 'Monolith',
+    name: '2001: A Space Odyssey',
+    year: 1968, director: 'Stanley Kubrick',
+    synopsis: 'A crew aboard a deep-space mission confronts a mysterious monolith and an unreliable AI.',
     description: 'Red alert, amber interior, cold interstellar void',
-    targetHues: [355, 20, 45, 200, 225, 250],
-    jitterMax: 3,
+    targetHues: [355, 20, 45, 200, 225, 250], jitterMax: 3,
   },
   {
-    name: 'Italian Summer',
+    name: 'Call Me By Your Name',
+    year: 2017, director: 'Luca Guadagnino',
+    synopsis: 'In 1983 Italy, a precocious teenager falls for a grad student staying with his family.',
     description: 'Peach, coral, olive groves, and sun-bleached Italian yellow',
-    targetHues: [15, 35, 55, 75, 95, 340],
-    jitterMax: 3,
+    targetHues: [15, 35, 55, 75, 95, 340], jitterMax: 3,
   },
   {
-    name: 'Bonfire Portrait',
+    name: 'Portrait of a Lady on Fire',
+    year: 2019, director: 'Céline Sciamma',
+    synopsis: 'In 18th-century Brittany, a painter is secretly commissioned to paint a reluctant bride.',
     description: 'Deep ocean blue, warm red dress, and bonfire orange',
-    targetHues: [0, 25, 45, 210, 235, 260],
-    jitterMax: 3,
+    targetHues: [0, 25, 45, 210, 235, 260], jitterMax: 3,
   },
   {
-    name: 'Desert Messiah',
+    name: 'Dune (2021)',
+    year: 2021, director: 'Denis Villeneuve',
+    synopsis: 'The heir of a noble house takes up his destiny on a desert planet that trades in dreams and spice.',
     description: 'Sand orange, deep amber, ochre dust, and teal shadow',
-    targetHues: [25, 45, 65, 180, 205, 230],
-    jitterMax: 3,
+    targetHues: [25, 45, 65, 180, 205, 230], jitterMax: 3,
   },
   {
-    name: 'Runway',
+    name: 'The Neon Demon',
+    year: 2016, director: 'Nicolas Winding Refn',
+    synopsis: 'An aspiring model arrives in Los Angeles and is devoured by the fashion industry.',
     description: 'Electric magenta, deep violet, and runway hot pink',
-    targetHues: [15, 250, 275, 300, 325, 350],
-    jitterMax: 3,
+    targetHues: [15, 250, 275, 300, 325, 350], jitterMax: 3,
   },
   {
-    name: 'Basement',
+    name: 'Parasite',
+    year: 2019, director: 'Bong Joon-ho',
+    synopsis: 'A poor family infiltrates the lives of a wealthy one, with escalating, violent consequences.',
     description: 'Muted grey-blue, warm wood brown, and deep basement green',
-    targetHues: [25, 45, 140, 165, 200, 225],
-    jitterMax: 3,
+    targetHues: [25, 45, 140, 165, 200, 225], jitterMax: 3,
   },
   {
-    name: 'Osage Earth',
+    name: 'Killers of the Flower Moon',
+    year: 2023, director: 'Martin Scorsese',
+    synopsis: 'In 1920s Oklahoma, members of the Osage Nation are murdered for the oil rights beneath their land.',
     description: 'Russet, deep red earth, ochre, and sun-worn brown',
-    targetHues: [15, 35, 55, 75, 330, 355],
-    jitterMax: 3,
+    targetHues: [15, 35, 55, 75, 330, 355], jitterMax: 3,
   },
   {
-    name: 'Inverse',
+    name: 'Tenet',
+    year: 2020, director: 'Christopher Nolan',
+    synopsis: 'A secret agent manipulates the flow of time to prevent an impending global catastrophe.',
     description: 'Icy cyan, warm orange, and muted inverted navy',
-    targetHues: [15, 35, 180, 200, 220, 240],
-    jitterMax: 3,
+    targetHues: [15, 35, 180, 200, 220, 240], jitterMax: 3,
   },
   {
-    name: 'Multiverse',
+    name: 'Everything Everywhere All at Once',
+    year: 2022, director: 'Daniels',
+    synopsis: 'A laundromat owner discovers she can access multiverse versions of herself to save existence.',
     description: 'A full-wheel rainbow of parallel-universe hues',
-    targetHues: [0, 60, 120, 180, 240, 300],
-    jitterMax: 4,
+    targetHues: [0, 60, 120, 180, 240, 300], jitterMax: 4,
   },
   {
-    name: 'Dispatch',
-    description: 'Pale yellow, pink, minty teal, and soft lavender whimsy',
-    targetHues: [50, 75, 160, 180, 280, 340],
-    jitterMax: 3,
+    name: 'The French Dispatch',
+    year: 2021, director: 'Wes Anderson',
+    synopsis: 'An anthology film composed of three stories from the final issue of a Kansas-based magazine.',
+    description: 'Wes Anderson yellow, pink, minty teal, and soft lavender',
+    targetHues: [50, 75, 160, 180, 280, 340], jitterMax: 3,
   },
   {
-    name: 'Tokyo Neon',
+    name: 'Lost in Translation',
+    year: 2003, director: 'Sofia Coppola',
+    synopsis: 'An aging actor and a young college graduate form an unlikely bond in a Tokyo hotel.',
     description: 'Neon Tokyo pink, cool grey-blue, warm yellow, and mauve',
-    targetHues: [50, 210, 235, 285, 315, 340],
-    jitterMax: 3,
+    targetHues: [50, 210, 235, 285, 315, 340], jitterMax: 3,
   },
   {
-    name: 'Milk Bar',
-    description: 'Vivid unease red and clinical clinical blue',
-    targetHues: [355, 15, 40, 205, 230, 255],
-    jitterMax: 3,
+    name: 'A Clockwork Orange',
+    year: 1971, director: 'Stanley Kubrick',
+    synopsis: 'A violent young delinquent in a dystopian Britain is forced into aversion therapy.',
+    description: 'Vivid red unease and clinical cold blue',
+    targetHues: [355, 15, 40, 205, 230, 255], jitterMax: 3,
   },
   {
-    name: 'Beach Memory',
+    name: 'Eternal Sunshine of the Spotless Mind',
+    year: 2004, director: 'Michel Gondry',
+    synopsis: 'After a couple has their memories of each other erased, they try to find their way back.',
     description: 'Icy beach blue, warm yellow memory, and faded pink',
-    targetHues: [20, 45, 200, 220, 330, 355],
-    jitterMax: 3,
+    targetHues: [20, 45, 200, 220, 330, 355], jitterMax: 3,
   },
   {
-    name: 'Stairwell',
-    description: 'Teal-grey city, warm red smile, and ochre stairwell',
-    targetHues: [15, 35, 60, 175, 200, 355],
-    jitterMax: 3,
+    name: 'Joker',
+    year: 2019, director: 'Todd Phillips',
+    synopsis: 'A failed stand-up comedian in Gotham descends into nihilism and becomes a symbol of chaos.',
+    description: 'Teal-grey Gotham, warm red smile, and ochre stairwell',
+    targetHues: [15, 35, 60, 175, 200, 355], jitterMax: 3,
   },
   {
-    name: 'Pink Plastic',
+    name: 'Barbie',
+    year: 2023, director: 'Greta Gerwig',
+    synopsis: 'Barbie and Ken travel from their pink idyll to the real world and confront existential questions.',
     description: 'Hot pink, soft bubblegum, magenta, and an aqua accent',
-    targetHues: [0, 20, 180, 290, 320, 340],
-    jitterMax: 3,
+    targetHues: [0, 20, 180, 290, 320, 340], jitterMax: 3,
   },
 ];
+
+// ────────────────────────────────────────────────────────────────────
+// FilmGuess: multiple-choice bonus challenge (Change 3)
+// Hardcoded distractors per palette. Each entry provides 2 plausible
+// "same-mood" films that are NOT the correct answer.
+// ────────────────────────────────────────────────────────────────────
+const FILM_DISTRACTORS = {
+  'Blade Runner 2049': ['Blade Runner (1982)', 'Ex Machina'],
+  'Moonrise Kingdom': ['Fantastic Mr. Fox', 'Rushmore'],
+  'Mad Max: Fury Road': ['The Road', 'Dune (2021)'],
+  'The Grand Budapest Hotel': ['The Royal Tenenbaums', 'Marie Antoinette'],
+  'Amélie': ['Chocolat', 'The Science of Sleep'],
+  'Drive': ['Only God Forgives', 'Blade Runner 2049'],
+  'La La Land': ['Whiplash', 'Moulin Rouge!'],
+  'Her': ['Lost in Translation', 'Eternal Sunshine'],
+  'The Matrix': ['Ghost in the Shell', 'Dark City'],
+  'Inception': ['Interstellar', 'Memento'],
+  'Pulp Fiction': ['Jackie Brown', 'Reservoir Dogs'],
+  'The Shining': ['Rosemary\'s Baby', 'The Witch'],
+  'Drive My Car': ['Paterson', 'A Hero'],
+  'In the Mood for Love': ['Chungking Express', '2046'],
+  'Spirited Away': ['Princess Mononoke', 'Howl\'s Moving Castle'],
+  'Akira': ['Ghost in the Shell', 'Paprika'],
+  '2001: A Space Odyssey': ['Solaris', 'Interstellar'],
+  'Call Me By Your Name': ['A Bigger Splash', 'Y Tu Mamá También'],
+  'Portrait of a Lady on Fire': ['Carol', 'The Piano'],
+  'Dune (2021)': ['Blade Runner 2049', 'Arrival'],
+  'The Neon Demon': ['Black Swan', 'Suspiria (2018)'],
+  'Parasite': ['Snowpiercer', 'Burning'],
+  'Killers of the Flower Moon': ['There Will Be Blood', 'No Country for Old Men'],
+  'Tenet': ['Inception', 'Primer'],
+  'Everything Everywhere All at Once': ['Swiss Army Man', 'The Matrix'],
+  'The French Dispatch': ['The Grand Budapest Hotel', 'Isle of Dogs'],
+  'Lost in Translation': ['Her', 'Somewhere'],
+  'A Clockwork Orange': ['Trainspotting', 'Fight Club'],
+  'Eternal Sunshine of the Spotless Mind': ['Being John Malkovich', 'Her'],
+  'Joker': ['Taxi Driver', 'The King of Comedy'],
+  'Barbie': ['Mean Girls', 'Clueless'],
+};
 
 // Featured one-off overrides for specific dates. These win over the
 // monthly rotation. Use the cinema-palette format: { name, description,
@@ -495,6 +568,40 @@ function themeForDate(dateStr) {
   const override = FEATURED_OVERRIDES[dateStr];
   if (override) return override;
   return CINEMA_PALETTES[monthlyShuffledThemeIndex(dateStr)];
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Puzzle numbering (Change 5)
+// Days-since-launch → "Puzzle #N", shown in TitleBar.
+// ────────────────────────────────────────────────────────────────────
+const LAUNCH_DATE = '2026-04-18'; // First day Hueday went live. Counts from this.
+
+function puzzleNumberFor(dateStr) {
+  const launch = new Date(LAUNCH_DATE + 'T12:00:00');
+  const today  = new Date(dateStr + 'T12:00:00');
+  const diffMs = today - launch;
+  return Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
+}
+
+// ────────────────────────────────────────────────────────────────────
+// FilmGuess helpers (Change 3)
+// Build 3 options (correct + 2 distractors) with a date-seeded stable
+// order so every player gets the same shuffle for the same puzzle.
+// ────────────────────────────────────────────────────────────────────
+function filmGuessOptionsFor(themeName, dateStr) {
+  const distractors = FILM_DISTRACTORS[themeName] || [];
+  const pool = [themeName, ...distractors].slice(0, 3);
+  // Fisher-Yates seeded by dateStr + themeName so the order is stable
+  // for everyone on a given day.
+  let state = fnv1a64(dateStr + '|' + themeName);
+  const arr = pool.slice();
+  for (let i = arr.length - 1; i > 0; i--) {
+    let u;
+    [state, u] = nextUniform(state);
+    const j = Math.floor(u * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -644,18 +751,23 @@ function savePracticeBest(dateStr, attempts) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Scoring (v5)
+// Scoring (v6 — adds FilmGuess bonus)
 //
 // Score is based on attempts (fewer = better), halved if hints were
 // used, with a +25 "EXACT" bonus when every slot landed on the exact
-// integer target hue with no hints.
+// integer target hue with no hints. A separate +10 FilmGuess bonus is
+// applied for correctly identifying the inspiring film — that's a
+// distinct skill (film knowledge vs color skill), so hintsUsed does
+// NOT apply to it (no double-penalty).
+// Max total: 100 (base) + 25 (exact) + 10 (film) = 135.
 // ────────────────────────────────────────────────────────────────────
-function computeScore(attempts, solved, hintsUsed, exactAllIntegerMatch) {
+function computeScore(attempts, solved, hintsUsed, exactAllIntegerMatch, filmGuessCorrect) {
   let base = solved ? Math.max(0, 100 - (attempts - 1) * 15) : 0;
   // attempts=1 → 100, 2→85, 3→70, 4→55, 5→40, 6→25, fail→0
   if (hintsUsed) base = Math.floor(base / 2);
-  const bonus = (solved && exactAllIntegerMatch && !hintsUsed) ? 25 : 0;
-  return Math.max(0, base + bonus); // 0..125
+  const exactBonus = (solved && exactAllIntegerMatch && !hintsUsed) ? 25 : 0;
+  const filmBonus  = filmGuessCorrect ? 10 : 0;
+  return Math.max(0, base + exactBonus + filmBonus); // 0..135
 }
 
 function scoreGrade(score) {
@@ -693,6 +805,7 @@ function TitleBar({ dateStr, practiceMode, strictMode, category }) {
   const display = dateStr ? new Date(dateStr + 'T12:00:00').toLocaleDateString(undefined, {
     weekday: 'long', month: 'long', day: 'numeric',
   }) : '';
+  const puzzleNum = dateStr ? puzzleNumberFor(dateStr) : null;
   return (
     <div style={{ paddingTop: 18, paddingBottom: 14, textAlign: 'center', position: 'relative' }}>
       <div style={{
@@ -706,9 +819,17 @@ function TitleBar({ dateStr, practiceMode, strictMode, category }) {
         <div style={{
           fontSize: 9.5, marginTop: 4,
           letterSpacing: 2.5, textTransform: 'uppercase', fontWeight: 600,
+          padding: '0 12px',
+          lineHeight: 1.5,
         }}>
           <span style={{ color: HD_MUTED }}>Category · </span>
           <span style={{ color: HD_TEXT }}>{category}</span>
+          {puzzleNum != null && puzzleNum >= 1 && (
+            <>
+              <span style={{ color: HD_MUTED }}> · </span>
+              <span style={{ color: HD_TEXT }}>Puzzle #{puzzleNum}</span>
+            </>
+          )}
         </div>
       )}
       {practiceMode && (
@@ -1039,8 +1160,11 @@ function ScoringPanel({ open, onToggle }) {
             <li style={{ marginBottom: 4 }}>
               <span style={{ color: '#f59e42', fontWeight: 600 }}>Hints used</span> — base score is halved
             </li>
-            <li>
+            <li style={{ marginBottom: 4 }}>
               <span style={{ color: '#fbbf24', fontWeight: 600 }}>Perfect match bonus</span> — +25 if every final slot hit the exact hue and no hints were used
+            </li>
+            <li>
+              <span style={{ color: '#86efac', fontWeight: 600 }}>Film-name bonus</span> — +10 for guessing the inspiring film (eligible even if hints were used)
             </li>
           </ul>
 
@@ -1074,8 +1198,81 @@ function ScoringPanel({ open, onToggle }) {
           </table>
 
           <p style={{ margin: '6px 0 0', color: HD_MUTED, fontSize: 10, lineHeight: 1.45, fontStyle: 'italic' }}>
-            Max possible: <b>125</b> · 1/6, no hints, all six exact integer matches.
+            Max possible: <b>135</b> · 1/6, no hints, all six exact integer matches, plus the film-name bonus.
           </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────
+// FAQ panel (Change 4) — collapsible, closed by default.
+// ────────────────────────────────────────────────────────────────────
+function FAQPanel({ open, onToggle }) {
+  const items = [
+    {
+      q: "Why aren't the film names real?",
+      a: "They are, actually! This is a prototype, so we use the real titles for testing. A shipping version would rename them to avoid trademark issues.",
+    },
+    {
+      q: "Can I suggest a palette?",
+      a: "Not yet — this is solo-dev early days. Feedback welcome directly.",
+    },
+    {
+      q: "How are the 6 hues chosen?",
+      a: "Each palette has 6 anchor hues hand-picked from the film's signature colors, with a small daily \u00B1jitter so puzzles don't repeat identically.",
+    },
+    {
+      q: "What happens at midnight?",
+      a: "Your local midnight brings a new puzzle. The same puzzle runs worldwide for that date; time zones stagger who sees it first.",
+    },
+    {
+      q: "Can I play past puzzles?",
+      a: "Not archived yet. You can use Practice mode to replay today's puzzle unlimited times, or Strict mode for an exact-integer challenge.",
+    },
+    {
+      q: "Why is the answer sometimes teal when the film is mostly green?",
+      a: "Each palette has 6 hues spread apart to make the puzzle solvable (targets need to be distinguishable). Monochromatic films end up stretched slightly for playability.",
+    },
+    {
+      q: "What's the max score?",
+      a: "135 points \u2014 solved in 1/6, no hints, all 6 exact integer matches, plus the film-name bonus.",
+    },
+  ];
+  return (
+    <div style={{
+      margin: '0 18px 10px',
+      background: HD_SURFACE,
+      border: '1px solid ' + HD_BORDER,
+      borderRadius: 10,
+      overflow: 'hidden',
+    }}>
+      <div onClick={onToggle} style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '10px 12px', cursor: 'pointer', userSelect: 'none',
+      }}>
+        <div style={{
+          fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase',
+          color: HD_TEXT,
+        }}>FAQ</div>
+        <div style={{ fontSize: 11, color: HD_MUTED }}>{open ? '▲' : '▼'}</div>
+      </div>
+      {open && (
+        <div style={{ padding: '0 12px 12px', color: '#cfcfcf', fontSize: 11, lineHeight: 1.55 }}>
+          {items.map((it, i) => (
+            <div key={i} style={{
+              paddingTop: i === 0 ? 2 : 8,
+              paddingBottom: 8,
+              borderBottom: i === items.length - 1 ? 'none' : '1px solid ' + HD_BORDER,
+            }}>
+              <div style={{
+                color: HD_TEXT, fontWeight: 700, fontSize: 11,
+                letterSpacing: 0.2, marginBottom: 3,
+              }}>Q: {it.q}</div>
+              <div style={{ color: '#cfcfcf', fontSize: 11, lineHeight: 1.5 }}>A: {it.a}</div>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -1111,16 +1308,34 @@ function PalettePoster({ theme, puzzle }) {
 function MoviePosterReveal({ theme, puzzle }) {
   const searchUrl = 'https://www.google.com/search?tbm=isch&q=' +
     encodeURIComponent(theme.name + ' movie poster scene');
+  const yearDir = [theme.year, theme.director].filter(Boolean).join(' · ');
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center',
-      gap: 10, marginTop: 4,
+      gap: 8, marginTop: 4,
     }}>
       <div style={{
         color: HD_MUTED, fontSize: 9.5, letterSpacing: 2.5,
         textTransform: 'uppercase', fontWeight: 600,
       }}>The palette</div>
       <PalettePoster theme={theme} puzzle={puzzle}/>
+
+      {yearDir && (
+        <div style={{
+          fontSize: 10, color: HD_MUTED, letterSpacing: 0.6,
+          marginTop: 2, textAlign: 'center',
+        }}>{yearDir}</div>
+      )}
+
+      {theme.synopsis && (
+        <div style={{
+          fontSize: 12, color: '#cfcfcf', fontStyle: 'italic',
+          letterSpacing: 0.2, textAlign: 'center',
+          maxWidth: 300, lineHeight: 1.45, padding: '0 8px',
+          marginTop: -2,
+        }}>{theme.synopsis}</div>
+      )}
+
       <a
         href={searchUrl}
         target="_blank"
@@ -1132,20 +1347,126 @@ function MoviePosterReveal({ theme, puzzle }) {
           border: '1px solid ' + HD_BORDER,
           background: 'rgba(255,255,255,0.04)',
           textDecoration: 'none',
+          marginTop: 2,
         }}
       >View posters & scenes →</a>
-      <div style={{
-        fontSize: 9, color: HD_MUTED, letterSpacing: 0.4,
-        fontStyle: 'italic', maxWidth: 260, textAlign: 'center',
-        lineHeight: 1.4, marginTop: -2,
-      }}>
-        Palette card
-      </div>
     </div>
   );
 }
 
-function ScoreCard({ score, attempts, solved, hintsUsed, exactBonus }) {
+// ────────────────────────────────────────────────────────────────────
+// FilmGuess — multiple-choice bonus challenge (Change 3)
+// Shown after game end (solve or fail), BEFORE the reveal card.
+// Collapses once the user answers or skips; tracked via parent state.
+// ────────────────────────────────────────────────────────────────────
+function FilmGuess({ options, correctName, chosen, onChoose, onSkip, feedback }) {
+  // feedback: null | 'correct' | 'wrong'
+  const locked = chosen != null;
+  return (
+    <div style={{
+      width: '100%', maxWidth: 320,
+      background: HD_SURFACE,
+      border: '1px solid ' + HD_BORDER,
+      borderRadius: 12,
+      padding: '12px 14px',
+      display: 'flex', flexDirection: 'column', gap: 10,
+    }}>
+      <div style={{
+        fontSize: 10, color: HD_MUTED, letterSpacing: 2.5,
+        textTransform: 'uppercase', fontWeight: 700, textAlign: 'center',
+      }}>Which film inspired this palette?</div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        {options.map((opt) => {
+          const isChosen  = chosen === opt;
+          const isCorrect = opt === correctName;
+          let bg    = 'transparent';
+          let bd    = HD_BORDER;
+          let color = HD_TEXT;
+          let anim  = '';
+          if (locked) {
+            if (isChosen && isCorrect) {
+              bg = 'rgba(74, 222, 128, 0.14)';
+              bd = HD_GREEN;
+              color = '#bbf7d0';
+              anim = 'hueday-fb-green';
+            } else if (isChosen && !isCorrect) {
+              bg = 'rgba(239, 68, 68, 0.14)';
+              bd = '#f87171';
+              color = '#fecaca';
+              anim = 'hueday-fb-yellow';
+            } else if (!isChosen && isCorrect) {
+              // Reveal the correct answer after a wrong pick.
+              bg = 'rgba(74, 222, 128, 0.08)';
+              bd = HD_GREEN;
+              color = '#86efac';
+            }
+          }
+          return (
+            <button
+              key={opt}
+              className={anim}
+              onClick={locked ? undefined : () => onChoose(opt)}
+              disabled={locked}
+              style={{
+                background: bg,
+                border: '1px solid ' + bd,
+                color,
+                fontFamily: HD_FONT,
+                fontSize: 12, fontWeight: 600,
+                padding: '10px 12px',
+                borderRadius: 10,
+                textAlign: 'left',
+                cursor: locked ? 'default' : 'pointer',
+                letterSpacing: 0.2,
+                lineHeight: 1.3,
+                transition: 'background-color 180ms ease, border-color 180ms ease, color 180ms ease',
+              }}
+            >{opt}</button>
+          );
+        })}
+      </div>
+
+      {!locked && (
+        <button
+          onClick={onSkip}
+          style={{
+            background: 'transparent',
+            border: '1px solid ' + HD_BORDER,
+            color: HD_MUTED,
+            fontSize: 10, fontWeight: 600, letterSpacing: 1.4,
+            textTransform: 'uppercase',
+            padding: '6px 10px', borderRadius: 8,
+            cursor: 'pointer', fontFamily: HD_FONT,
+            alignSelf: 'center',
+          }}
+        >Skip, just show me</button>
+      )}
+
+      {feedback === 'correct' && (
+        <div style={{
+          alignSelf: 'center',
+          fontSize: 10, fontWeight: 800, letterSpacing: 1.5,
+          textTransform: 'uppercase',
+          color: '#bbf7d0',
+          background: 'rgba(74, 222, 128, 0.14)',
+          border: '1px solid ' + HD_GREEN,
+          padding: '3px 10px', borderRadius: 999,
+        }}>+10 Bonus</div>
+      )}
+      {feedback === 'wrong' && (
+        <div style={{
+          alignSelf: 'center',
+          fontSize: 10, fontWeight: 800, letterSpacing: 1.5,
+          textTransform: 'uppercase',
+          color: '#fecaca',
+        }}>Close · see the answer above</div>
+      )}
+    </div>
+  );
+}
+
+function ScoreCard({ score, attempts, solved, hintsUsed, exactBonus, filmBonus }) {
   const grade = scoreGrade(score);
   const starsFull  = '★'.repeat(grade.stars);
   const starsEmpty = '☆'.repeat(5 - grade.stars);
@@ -1180,7 +1501,7 @@ function ScoreCard({ score, attempts, solved, hintsUsed, exactBonus }) {
         <div style={{
           fontSize: 22, fontWeight: 700, color: HD_TEXT, letterSpacing: 0.4,
         }}>{score}</div>
-        <div style={{ fontSize: 11, color: HD_MUTED }}>/ 125</div>
+        <div style={{ fontSize: 11, color: HD_MUTED }}>/ 135</div>
         <div style={{
           fontSize: 10, fontWeight: 700, letterSpacing: 1.4,
           color: HD_TEXT,
@@ -1192,16 +1513,29 @@ function ScoreCard({ score, attempts, solved, hintsUsed, exactBonus }) {
       <div style={{ fontSize: 11, color: HD_TEXT, letterSpacing: 0.3 }}>
         {attemptsLine} <span style={{ color: HD_MUTED }}>•</span> {hintLine}
       </div>
-      {exactBonus && (
-        <div style={{
-          marginTop: 4,
-          fontSize: 10, fontWeight: 800, letterSpacing: 1.5,
-          textTransform: 'uppercase',
-          color: '#fde68a',
-          background: 'rgba(250, 204, 21, 0.12)',
-          border: '1px solid rgba(250, 204, 21, 0.5)',
-          padding: '3px 8px', borderRadius: 999,
-        }}>+25 EXACT BONUS</div>
+      {(exactBonus || filmBonus) && (
+        <div style={{ marginTop: 4, display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+          {exactBonus && (
+            <div style={{
+              fontSize: 10, fontWeight: 800, letterSpacing: 1.5,
+              textTransform: 'uppercase',
+              color: '#fde68a',
+              background: 'rgba(250, 204, 21, 0.12)',
+              border: '1px solid rgba(250, 204, 21, 0.5)',
+              padding: '3px 8px', borderRadius: 999,
+            }}>+25 EXACT BONUS</div>
+          )}
+          {filmBonus && (
+            <div style={{
+              fontSize: 10, fontWeight: 800, letterSpacing: 1.5,
+              textTransform: 'uppercase',
+              color: '#bbf7d0',
+              background: 'rgba(74, 222, 128, 0.12)',
+              border: '1px solid rgba(74, 222, 128, 0.55)',
+              padding: '3px 8px', borderRadius: 999,
+            }}>+10 FILM BONUS</div>
+          )}
+        </div>
       )}
     </div>
   );
@@ -1637,6 +1971,16 @@ function App() {
     catch (_) { return true; }
   });
   const [scoringOpen, setScoringOpen] = React.useState(false);
+  const [faqOpen, setFaqOpen]         = React.useState(false);
+
+  // ── FilmGuess bonus state (Change 3) ──
+  // `filmGuessChoice` is the option the player picked (string) or 'skip'.
+  // `filmGuessCorrect` is true iff they chose the correct film name.
+  // Tracked per daily-date via keying on dateStr so it persists across
+  // the reveal even if the player leaves/returns (in-memory only — we
+  // don't persist past a refresh; it's a one-shot bonus).
+  const [filmGuessChoice, setFilmGuessChoice]   = React.useState(null);
+  const [filmGuessCorrect, setFilmGuessCorrect] = React.useState(false);
 
   // ── Virtual-date preview (session only, not persisted) ──
   const [virtualDateOffset, setVirtualDateOffset] = React.useState(0);
@@ -1713,6 +2057,8 @@ function App() {
         setShowDeg(false);
         setHintsUsed(false);
         setFading(false);
+        setFilmGuessChoice(null);
+        setFilmGuessCorrect(false);
         // Drop any stale practice session at rollover.
         setPracticeMode(false);
         setStrictMode(false);
@@ -1953,12 +2299,16 @@ function App() {
       setState('solved');
       chime();
       // Persist score for real-today plays only — previews are ephemeral.
+      // Note: filmGuessBonus is applied separately once the player answers
+      // the bonus challenge; the initial save reflects the pre-bonus score
+      // and is overwritten (if better) when the bonus resolves.
       if (virtualDateOffset === 0) {
         const attempts = currentRow + 1;
         const exactAllInteger = scored.slots.every(s => s.distance === 0);
-        const score = computeScore(attempts, true, hintsUsed, exactAllInteger);
+        const score = computeScore(attempts, true, hintsUsed, exactAllInteger, false);
         saveScoreForDate(dateStr, {
           score, attempts, hintsUsed, exactBonus: exactAllInteger && !hintsUsed,
+          filmBonus: false,
           themeName: puzzle.theme ? puzzle.theme.name : null,
         });
       }
@@ -1970,6 +2320,7 @@ function App() {
       if (virtualDateOffset === 0) {
         saveScoreForDate(dateStr, {
           score: 0, attempts: 6, hintsUsed, exactBonus: false,
+          filmBonus: false,
           themeName: puzzle.theme ? puzzle.theme.name : null,
         });
       }
@@ -2112,6 +2463,8 @@ function App() {
     setPickerHue(180);
     setShowDeg(false);
     setFading(false);
+    setFilmGuessChoice(null);
+    setFilmGuessCorrect(false);
   };
   const onNextDay = () => {
     const next = virtualDateOffset + 1;
@@ -2158,6 +2511,33 @@ function App() {
 
   const practiceBestForToday = practiceBest && practiceBest.dateStr === dateStr ? practiceBest : null;
 
+  // ── Persist the film-guess bonus back to score history when it resolves ──
+  // Only for real-today (not preview, not practice). The score entry is
+  // only overwritten when the new score is strictly higher, so this is a
+  // safe re-save.
+  React.useEffect(() => {
+    if (practiceMode) return;
+    if (virtualDateOffset !== 0) return;
+    if (state === 'in-progress') return;
+    if (!filmGuessCorrect) return;
+    const solvedNow = state === 'solved';
+    const attempts = solvedNow ? (currentRow + 1) : 6;
+    let exactAllInteger = false;
+    if (solvedNow) {
+      const winRow = rows[currentRow];
+      if (winRow && winRow.submitted) {
+        exactAllInteger = winRow.slots.every(s => s.distance === 0);
+      }
+    }
+    const score = computeScore(attempts, solvedNow, hintsUsed, exactAllInteger, true);
+    saveScoreForDate(dateStr, {
+      score, attempts, hintsUsed,
+      exactBonus: solvedNow && exactAllInteger && !hintsUsed,
+      filmBonus: true,
+      themeName: puzzle.theme ? puzzle.theme.name : null,
+    });
+  }, [filmGuessCorrect, state, practiceMode, virtualDateOffset, dateStr, currentRow, rows, hintsUsed, puzzle]);
+
   // ── Derived score for the daily track (shown on game end, not in practice) ──
   const dailyScoreInfo = React.useMemo(() => {
     if (practiceMode) return null;
@@ -2172,12 +2552,13 @@ function App() {
         exactAllInteger = winRow.slots.every(s => s.distance === 0);
       }
     }
-    const score = computeScore(attempts, solvedNow, hintsUsed, exactAllInteger);
+    const score = computeScore(attempts, solvedNow, hintsUsed, exactAllInteger, filmGuessCorrect);
     return {
       score, attempts, solved: solvedNow, hintsUsed,
       exactBonus: solvedNow && exactAllInteger && !hintsUsed,
+      filmBonus: filmGuessCorrect,
     };
-  }, [practiceMode, state, currentRow, rows, hintsUsed]);
+  }, [practiceMode, state, currentRow, rows, hintsUsed, filmGuessCorrect]);
 
   const inPreview = virtualDateOffset > 0;
   const virtualDateStr = inPreview ? dateStr : null;
@@ -2230,6 +2611,7 @@ function App() {
       />
 
       <ScoringPanel open={scoringOpen} onToggle={() => setScoringOpen(v => !v)} />
+      <FAQPanel open={faqOpen} onToggle={() => setFaqOpen(v => !v)} />
 
       {midHint && (
         <div
@@ -2292,12 +2674,49 @@ function App() {
                     solved={dailyScoreInfo.solved}
                     hintsUsed={dailyScoreInfo.hintsUsed}
                     exactBonus={dailyScoreInfo.exactBonus}
+                    filmBonus={dailyScoreInfo.filmBonus}
                   />
                 </div>
               )}
 
-              {/* Palette reveal card + Google Images link-out for posters & scenes. */}
-              <MoviePosterReveal theme={puzzle.theme} puzzle={puzzle} />
+              {/* FilmGuess bonus challenge — shown on daily track BEFORE the
+                  reveal; once answered or skipped, the reveal renders below. */}
+              {!practiceMode && puzzle.theme && FILM_DISTRACTORS[puzzle.theme.name] && filmGuessChoice == null && (
+                <FilmGuess
+                  options={filmGuessOptionsFor(puzzle.theme.name, dateStr)}
+                  correctName={puzzle.theme.name}
+                  chosen={null}
+                  feedback={null}
+                  onChoose={(opt) => {
+                    setFilmGuessChoice(opt);
+                    const correct = opt === puzzle.theme.name;
+                    setFilmGuessCorrect(correct);
+                    haptic(correct ? 20 : 10);
+                  }}
+                  onSkip={() => {
+                    setFilmGuessChoice('skip');
+                    setFilmGuessCorrect(false);
+                  }}
+                />
+              )}
+
+              {/* After the player has resolved the bonus (answered or skipped),
+                  show the reveal card. Palette reveal card + Google Images link-out. */}
+              {(practiceMode || filmGuessChoice != null || !(puzzle.theme && FILM_DISTRACTORS[puzzle.theme.name])) && (
+                <>
+                  {!practiceMode && filmGuessChoice && filmGuessChoice !== 'skip' && (
+                    <FilmGuess
+                      options={filmGuessOptionsFor(puzzle.theme.name, dateStr)}
+                      correctName={puzzle.theme.name}
+                      chosen={filmGuessChoice}
+                      feedback={filmGuessCorrect ? 'correct' : 'wrong'}
+                      onChoose={() => {}}
+                      onSkip={() => {}}
+                    />
+                  )}
+                  <MoviePosterReveal theme={puzzle.theme} puzzle={puzzle} />
+                </>
+              )}
 
               <div style={{ marginTop: (!practiceMode && dailyScoreInfo && !inPreview) ? 2 : (showDeg ? 18 : 6), fontSize: 11, color: HD_TEXT, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 600 }}>
                 {practiceMode
