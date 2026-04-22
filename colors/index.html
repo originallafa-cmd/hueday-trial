@@ -5,7 +5,7 @@
 <title>Hueday — a daily color puzzle</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
 <meta name="theme-color" content="#141414" />
-<meta name="description" content="A daily color puzzle inspired by cinema palettes." />
+<meta name="description" content="A daily color puzzle drawn from movies, TV, animation, and cartoons. A new palette every day." />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -195,7 +195,7 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // discarded and a fresh puzzle is generated. v13 bump is justified:
 // every palette has been renamed and four were re-tuned, so
 // saved.themeName and prior feedback colors would mismatch.
-const GEN_VERSION          = 'v22-fix-drag-click-bubble-2026-04-22';
+const GEN_VERSION          = 'v23-tv-animation-categories-2026-04-22';
 const SCORE_HISTORY_KEY    = 'hueday-score-history';
 const DISPUTES_KEY         = 'hueday-disputes';
 
@@ -239,6 +239,47 @@ const MID_HINTS = {
   'Eternal Sunshine of the Spotless Mind': 'memory',
   'Joker': 'stairwell',
   'Barbie': 'plastic',
+  // Movies (obscure)
+  'Enter the Void': 'afterlife',
+  'Only God Forgives': 'vengeance',
+  'Mandy': 'cosmic',
+  'The Color of Pomegranates': 'icon',
+  'Chungking Express': 'drift',
+  // TV
+  'Too Old to Die Young': 'noir',
+  'The Young Pope': 'vatican',
+  'Halt and Catch Fire': 'retro',
+  'Legion': 'fracture',
+  'The Terror': 'arctic',
+  'Devs': 'quantum',
+  'Rectify': 'southern',
+  'Sharp Objects': 'heat',
+  'The Leftovers': 'grief',
+  'Patrick Melrose': 'aristocrat',
+  // Animation
+  'Princess Mononoke': 'forest',
+  'Your Name': 'twilight',
+  'Paprika': 'dream',
+  'Mind Game': 'primary',
+  'The Red Turtle': 'island',
+  'Wolfwalkers': 'celtic',
+  'Song of the Sea': 'selkie',
+  'Tekkonkinkreet': 'tin-town',
+  'Mary and Max': 'pen-pal',
+  'The Secret of Kells': 'illumination',
+  // Cartoon (literal palettes)
+  'Scooby-Doo': 'mystery',
+  'The Simpsons': 'springfield',
+  'SpongeBob SquarePants': 'bikini-bottom',
+  'The Powerpuff Girls': 'sugar',
+  'Adventure Time': 'ooo',
+  'Gravity Falls': 'mystery-shack',
+  'Rugrats': 'playpen',
+  'Dexter\'s Laboratory': 'genius',
+  'Over the Garden Wall': 'autumn',
+  'Frozen': 'ice',
+  'The Little Mermaid': 'under-the-sea',
+  'Snow White and the Seven Dwarfs': 'apple',
 };
 
 function midHintFor(theme) {
@@ -261,217 +302,484 @@ const CINEMA_PALETTES = [
     year: 2017, director: 'Denis Villeneuve',
     synopsis: 'A replicant blade runner uncovers a secret that could destabilize the order of things.',
     description: 'Neon haze of orange, cyan, and bruised magenta',
-    targetHues: [18, 40, 185, 210, 290, 325], jitterMax: 4,
+    targetHues: [18, 40, 185, 210, 290, 325], jitterMax: 4, category: 'Movies',
   },
   {
     name: 'Moonrise Kingdom',
     year: 2012, director: 'Wes Anderson',
     synopsis: 'Two twelve-year-olds run away together on a New England island in 1965.',
     description: 'Warm mustard, canvas tan, and dusty teal summer camp',
-    targetHues: [30, 55, 85, 175, 200, 280], jitterMax: 3,
+    targetHues: [30, 55, 85, 175, 200, 280], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'Mad Max: Fury Road',
     year: 2015, director: 'George Miller',
     synopsis: 'A woman rebels against a tyrant, fleeing across a post-apocalyptic desert in a converted war rig.',
     description: 'Scorched orange desert against deep teal shadow',
-    targetHues: [15, 35, 60, 180, 200, 225], jitterMax: 3,
+    targetHues: [15, 35, 60, 180, 200, 225], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'The Grand Budapest Hotel',
     year: 2014, director: 'Wes Anderson',
     synopsis: 'A legendary concierge and his lobby boy become entangled in a decades-spanning caper.',
     description: 'Confectionery pinks, lavenders, and soft ruby reds',
-    targetHues: [340, 10, 30, 60, 280, 300], jitterMax: 3,
+    targetHues: [340, 10, 30, 60, 280, 300], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'Amélie',
     year: 2001, director: 'Jean-Pierre Jeunet',
     synopsis: 'A shy Parisian waitress secretly orchestrates small joys for the people around her.',
     description: 'Emerald green, crimson red, and a warm Parisian yellow',
-    targetHues: [355, 20, 45, 70, 140, 165], jitterMax: 3,
+    targetHues: [355, 20, 45, 70, 140, 165], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'Drive',
     year: 2011, director: 'Nicolas Winding Refn',
     synopsis: 'A Hollywood stunt driver moonlights as a getaway driver and gets pulled into a deadly heist.',
     description: 'Hot pink neon, cool teal, and midnight synthwave purple',
-    targetHues: [25, 180, 275, 300, 330, 355], jitterMax: 3,
+    targetHues: [25, 180, 275, 300, 330, 355], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'La La Land',
     year: 2016, director: 'Damien Chazelle',
     synopsis: 'A jazz pianist and an aspiring actress chase their dreams and each other across Los Angeles.',
     description: 'Sunset yellow, navy twilight, and magenta stage lights',
-    targetHues: [20, 45, 220, 250, 320, 350], jitterMax: 3,
+    targetHues: [20, 45, 220, 250, 320, 350], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'Her',
     year: 2013, director: 'Spike Jonze',
     synopsis: 'A lonely writer develops an unlikely relationship with an AI operating system.',
     description: 'Soft coral, warm peach, and aching violet intimacy',
-    targetHues: [15, 35, 55, 270, 295, 320], jitterMax: 3,
+    targetHues: [15, 35, 55, 270, 295, 320], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'The Matrix',
     year: 1999, director: 'The Wachowskis',
     synopsis: 'A hacker discovers that reality is a simulation and joins a rebellion against its machines.',
     description: 'Six shades of code-green cascading down the screen',
-    targetHues: [85, 105, 125, 145, 165, 185], jitterMax: 3,
+    targetHues: [85, 105, 125, 145, 165, 185], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'Inception',
     year: 2010, director: 'Christopher Nolan',
     synopsis: 'A thief who steals secrets through dreams is given one last shot at redemption.',
     description: 'Gilded gold, burnt umber, and cold dreamscape teal',
-    targetHues: [25, 45, 65, 180, 200, 220], jitterMax: 3,
+    targetHues: [25, 45, 65, 180, 200, 220], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'Pulp Fiction',
     year: 1994, director: 'Quentin Tarantino',
     synopsis: 'The lives of hitmen, a boxer, and a diner couple intertwine across four interlocking stories.',
     description: 'Smoky red, ochre diner light, and warm noir',
-    targetHues: [340, 0, 20, 40, 60, 80], jitterMax: 3,
+    targetHues: [340, 0, 20, 40, 60, 80], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'The Shining',
     year: 1980, director: 'Stanley Kubrick',
     synopsis: 'A family takes a caretaker job at an isolated hotel; supernatural forces unravel the father.',
     description: 'Carpet crimson, overlook yellow, and navy hallway dread',
-    targetHues: [5, 30, 55, 80, 215, 240], jitterMax: 3,
+    targetHues: [5, 30, 55, 80, 215, 240], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'Drive My Car',
     year: 2021, director: 'Ryûsuke Hamaguchi',
     synopsis: 'A grieving actor stages a multilingual Chekhov and drives toward an old wound.',
     description: 'Muted blue-grey, deep red lacquer, and warm cream silence',
-    targetHues: [20, 45, 195, 220, 260, 355], jitterMax: 3,
+    targetHues: [20, 45, 195, 220, 260, 355], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'In the Mood for Love',
     year: 2000, director: 'Wong Kar-wai',
     synopsis: 'Two neighbors in 1960s Hong Kong suspect their spouses of an affair, and quietly fall for each other.',
     description: 'Saturated red cheongsam, warm orange, and deep jade green',
-    targetHues: [10, 30, 140, 160, 185, 345], jitterMax: 3,
+    targetHues: [10, 30, 140, 160, 185, 345], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'Spirited Away',
     year: 2001, director: 'Hayao Miyazaki',
     synopsis: 'A ten-year-old girl wanders into a spirit world and must work in a bathhouse to save her parents.',
     description: 'Fantasy teal bathhouse, warm red lanterns, and spirit gold',
-    targetHues: [0, 30, 50, 175, 200, 220], jitterMax: 3,
+    targetHues: [0, 30, 50, 175, 200, 220], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'Akira',
     year: 1988, director: 'Katsuhiro Otomo',
     synopsis: 'In a neon Neo-Tokyo, a biker gang member develops dangerous telekinetic powers.',
     description: 'Neon red bike, electric blue, and Neo-Tokyo violet',
-    targetHues: [10, 30, 210, 235, 260, 350], jitterMax: 3,
+    targetHues: [10, 30, 210, 235, 260, 350], jitterMax: 3, category: 'Movies',
   },
   {
     name: '2001: A Space Odyssey',
     year: 1968, director: 'Stanley Kubrick',
     synopsis: 'A crew aboard a deep-space mission confronts a mysterious monolith and an unreliable AI.',
     description: 'Red alert, amber interior, cold interstellar void',
-    targetHues: [355, 20, 45, 200, 225, 250], jitterMax: 3,
+    targetHues: [355, 20, 45, 200, 225, 250], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'Call Me By Your Name',
     year: 2017, director: 'Luca Guadagnino',
     synopsis: 'In 1983 Italy, a precocious teenager falls for a grad student staying with his family.',
     description: 'Italian sun, pool water, and evening blues',
-    targetHues: [30, 50, 70, 200, 235, 275], jitterMax: 3,
+    targetHues: [30, 50, 70, 200, 235, 275], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'Portrait of a Lady on Fire',
     year: 2019, director: 'Céline Sciamma',
     synopsis: 'In 18th-century Brittany, a painter is secretly commissioned to paint a reluctant bride.',
     description: 'Deep ocean blue, warm red dress, and bonfire orange',
-    targetHues: [0, 25, 45, 210, 235, 260], jitterMax: 3,
+    targetHues: [0, 25, 45, 210, 235, 260], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'Dune (2021)',
     year: 2021, director: 'Denis Villeneuve',
     synopsis: 'The heir of a noble house takes up his destiny on a desert planet that trades in dreams and spice.',
     description: 'Sand orange, deep amber, ochre dust, and teal shadow',
-    targetHues: [25, 45, 65, 180, 205, 230], jitterMax: 3,
+    targetHues: [25, 45, 65, 180, 205, 230], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'The Neon Demon',
     year: 2016, director: 'Nicolas Winding Refn',
     synopsis: 'An aspiring model arrives in Los Angeles and is devoured by the fashion industry.',
     description: 'Electric magenta, deep violet, and runway hot pink',
-    targetHues: [15, 250, 275, 300, 325, 350], jitterMax: 3,
+    targetHues: [15, 250, 275, 300, 325, 350], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'Parasite',
     year: 2019, director: 'Bong Joon-ho',
     synopsis: 'A poor family infiltrates the lives of a wealthy one, with escalating, violent consequences.',
     description: 'Muted grey-blue, warm wood brown, and deep basement green',
-    targetHues: [25, 45, 140, 165, 200, 225], jitterMax: 3,
+    targetHues: [25, 45, 140, 165, 200, 225], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'Killers of the Flower Moon',
     year: 2023, director: 'Martin Scorsese',
     synopsis: 'In 1920s Oklahoma, members of the Osage Nation are murdered for the oil rights beneath their land.',
     description: 'Russet, deep red earth, ochre, and sun-worn brown',
-    targetHues: [15, 35, 55, 75, 330, 355], jitterMax: 3,
+    targetHues: [15, 35, 55, 75, 330, 355], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'Tenet',
     year: 2020, director: 'Christopher Nolan',
     synopsis: 'A secret agent manipulates the flow of time to prevent an impending global catastrophe.',
     description: 'Icy cyan, warm orange, and muted inverted navy',
-    targetHues: [15, 35, 180, 200, 220, 240], jitterMax: 3,
+    targetHues: [15, 35, 180, 200, 220, 240], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'Everything Everywhere All at Once',
     year: 2022, director: 'Daniels',
     synopsis: 'A laundromat owner discovers she can access multiverse versions of herself to save existence.',
     description: 'A full-wheel rainbow of parallel-universe hues',
-    targetHues: [0, 60, 120, 180, 240, 300], jitterMax: 4,
+    targetHues: [0, 60, 120, 180, 240, 300], jitterMax: 4, category: 'Movies',
   },
   {
     name: 'The French Dispatch',
     year: 2021, director: 'Wes Anderson',
     synopsis: 'An anthology film composed of three stories from the final issue of a Kansas-based magazine.',
     description: 'Wes Anderson yellow, pink, minty teal, and soft lavender',
-    targetHues: [50, 75, 160, 180, 280, 340], jitterMax: 3,
+    targetHues: [50, 75, 160, 180, 280, 340], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'Lost in Translation',
     year: 2003, director: 'Sofia Coppola',
     synopsis: 'An aging actor and a young college graduate form an unlikely bond in a Tokyo hotel.',
     description: 'Neon Tokyo pink, cool grey-blue, warm yellow, and mauve',
-    targetHues: [50, 210, 235, 285, 315, 340], jitterMax: 3,
+    targetHues: [50, 210, 235, 285, 315, 340], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'A Clockwork Orange',
     year: 1971, director: 'Stanley Kubrick',
     synopsis: 'A violent young delinquent in a dystopian Britain is forced into aversion therapy.',
     description: 'Vivid red unease and clinical cold blue',
-    targetHues: [355, 15, 40, 205, 230, 255], jitterMax: 3,
+    targetHues: [355, 15, 40, 205, 230, 255], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'Eternal Sunshine of the Spotless Mind',
     year: 2004, director: 'Michel Gondry',
     synopsis: 'After a couple has their memories of each other erased, they try to find their way back.',
     description: 'Icy beach blue, warm yellow memory, and faded pink',
-    targetHues: [20, 45, 200, 220, 330, 355], jitterMax: 3,
+    targetHues: [20, 45, 200, 220, 330, 355], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'Joker',
     year: 2019, director: 'Todd Phillips',
     synopsis: 'A failed stand-up comedian in Gotham descends into nihilism and becomes a symbol of chaos.',
     description: 'Teal-grey Gotham, warm red smile, and ochre stairwell',
-    targetHues: [15, 35, 60, 175, 200, 355], jitterMax: 3,
+    targetHues: [15, 35, 60, 175, 200, 355], jitterMax: 3, category: 'Movies',
   },
   {
     name: 'Barbie',
     year: 2023, director: 'Greta Gerwig',
     synopsis: 'Barbie and Ken travel from their pink idyll to the real world and confront existential questions.',
     description: 'Hot pink, soft bubblegum, magenta, and an aqua accent',
-    targetHues: [0, 20, 180, 290, 320, 340], jitterMax: 3,
+    targetHues: [0, 20, 180, 290, 320, 340], jitterMax: 3, category: 'Movies',
+  },
+
+  // ── NEW Movies (obscure / arthouse) ────────────────────────────────
+  {
+    name: 'Enter the Void',
+    year: 2009, director: 'Gaspar Noé',
+    synopsis: 'A drug-dealing expat floats through a neon Tokyo afterlife after being killed.',
+    description: 'Psychedelic neon pink, cyan, violet, and acid orange',
+    targetHues: [10, 200, 260, 290, 320, 350], jitterMax: 4, category: 'Movies',
+  },
+  {
+    name: 'Only God Forgives',
+    year: 2013, director: 'Nicolas Winding Refn',
+    synopsis: 'A Bangkok drug smuggler is ordered by his mother to avenge his brother\'s death.',
+    description: 'Blood red, gilt gold, and deep shadow pink',
+    targetHues: [355, 15, 40, 60, 280, 320], jitterMax: 3, category: 'Movies',
+  },
+  {
+    name: 'Mandy',
+    year: 2018, director: 'Panos Cosmatos',
+    synopsis: 'A lumberjack goes on a hallucinatory rampage after a cult destroys his love.',
+    description: 'Hot cosmic red, lava orange, and deep acid violet',
+    targetHues: [350, 20, 45, 275, 305, 330], jitterMax: 3, category: 'Movies',
+  },
+  {
+    name: 'The Color of Pomegranates',
+    year: 1969, director: 'Sergei Parajanov',
+    synopsis: 'A poetic tableau-biography of the 18th-century Armenian poet Sayat-Nova.',
+    description: 'Saturated folk red, gold, deep green, and church blue',
+    targetHues: [5, 30, 55, 85, 210, 250], jitterMax: 3, category: 'Movies',
+  },
+  {
+    name: 'Chungking Express',
+    year: 1994, director: 'Wong Kar-wai',
+    synopsis: 'Two Hong Kong cops, each recovering from a breakup, brush past strangers who drift into their lives.',
+    description: 'Rainy neon, canned-pineapple yellow, and midnight teal',
+    targetHues: [10, 40, 65, 175, 210, 300], jitterMax: 3, category: 'Movies',
+  },
+
+  // ── TV (obscure / cult) ────────────────────────────────────────────
+  {
+    name: 'Too Old to Die Young',
+    year: 2019, director: 'Nicolas Winding Refn',
+    synopsis: 'A grieving LA sheriff drifts through a neon underworld of assassins and cults.',
+    description: 'Magenta noir, cold cyan, and slow-motion violet',
+    targetHues: [345, 20, 195, 220, 275, 310], jitterMax: 3, category: 'TV',
+  },
+  {
+    name: 'The Young Pope',
+    year: 2016, director: 'Paolo Sorrentino',
+    synopsis: 'A conservative American cardinal becomes the first US-born pope and upends the Vatican.',
+    description: 'Vatican pastel yellow, cassock red, and stained-glass blue',
+    targetHues: [30, 50, 140, 165, 285, 320], jitterMax: 3, category: 'TV',
+  },
+  {
+    name: 'Halt and Catch Fire',
+    year: 2014, director: 'Rogers & Cantwell',
+    synopsis: 'A pirate-crew of 1980s Texas engineers race to clone IBM\'s PC and then change computing forever.',
+    description: 'Reagan-era earth tones, chrome orange, and CRT green',
+    targetHues: [20, 45, 75, 150, 210, 340], jitterMax: 3, category: 'TV',
+  },
+  {
+    name: 'Legion',
+    year: 2017, director: 'Noah Hawley',
+    synopsis: 'A powerful mutant diagnosed with schizophrenia learns his hallucinations may be real.',
+    description: 'Mid-century yellow, red, clinic green, and reality-slip violet',
+    targetHues: [0, 25, 50, 75, 140, 280], jitterMax: 3, category: 'TV',
+  },
+  {
+    name: 'The Terror',
+    year: 2018, director: 'David Kajganich',
+    synopsis: 'A British naval expedition searching the Arctic Passage is stalked by something on the ice.',
+    description: 'Brass lamp light, rust, and endless polar blue',
+    targetHues: [15, 40, 65, 200, 220, 245], jitterMax: 3, category: 'TV',
+  },
+  {
+    name: 'Devs',
+    year: 2020, director: 'Alex Garland',
+    synopsis: 'A software engineer investigates the mysterious quantum-computing division where her partner vanished.',
+    description: 'Algorithmic gold, server-room green, and data-cathedral cyan',
+    targetHues: [20, 45, 80, 130, 155, 200], jitterMax: 3, category: 'TV',
+  },
+  {
+    name: 'Rectify',
+    year: 2013, director: 'Ray McKinnon',
+    synopsis: 'After 19 years on death row, a man is released back into a small Georgia town that never moved on.',
+    description: 'Southern gothic dust, pine shadow, and fading sunset pink',
+    targetHues: [25, 55, 85, 115, 145, 340], jitterMax: 3, category: 'TV',
+  },
+  {
+    name: 'Sharp Objects',
+    year: 2018, director: 'Jean-Marc Vallée',
+    synopsis: 'A reporter with a scarred past returns to her Missouri hometown to cover the murders of two girls.',
+    description: 'Missouri summer heat, bruise amber, and wound pink',
+    targetHues: [15, 35, 55, 280, 320, 350], jitterMax: 3, category: 'TV',
+  },
+  {
+    name: 'The Leftovers',
+    year: 2014, director: 'Damon Lindelof',
+    synopsis: 'Three years after 2% of the world\'s population vanished, a small town tries to live on.',
+    description: 'Grief grey, faded suburbia yellow, and cold distance blue',
+    targetHues: [20, 50, 180, 205, 230, 260], jitterMax: 3, category: 'TV',
+  },
+  {
+    name: 'Patrick Melrose',
+    year: 2018, director: 'Edward Berger',
+    synopsis: 'A sharp-tongued aristocrat confronts the abuse and addictions that shaped his life.',
+    description: 'British racing red, navy, and hotel-carpet dread',
+    targetHues: [0, 25, 200, 225, 270, 325], jitterMax: 3, category: 'TV',
+  },
+
+  // ── Animation (feature films, cinematic) ───────────────────────────
+  {
+    name: 'Princess Mononoke',
+    year: 1997, director: 'Hayao Miyazaki',
+    synopsis: 'A young prince caught between forest gods and industrial humans seeks to halt a spreading curse.',
+    description: 'Forest green, mountain mist, and blood-curse red',
+    targetHues: [5, 30, 95, 120, 145, 345], jitterMax: 3, category: 'Animation',
+  },
+  {
+    name: 'Your Name',
+    year: 2016, director: 'Makoto Shinkai',
+    synopsis: 'A country girl and a Tokyo boy wake up swapping bodies and try to find each other before a comet falls.',
+    description: 'Twilight pink, blue hour, and comet-trail orange',
+    targetHues: [15, 40, 195, 225, 280, 330], jitterMax: 3, category: 'Animation',
+  },
+  {
+    name: 'Paprika',
+    year: 2006, director: 'Satoshi Kon',
+    synopsis: 'A therapist uses a device to enter patients\' dreams, until someone starts weaponising it.',
+    description: 'Parade primaries — red, yellow, green, cyan, violet, magenta',
+    targetHues: [0, 50, 100, 150, 200, 280], jitterMax: 4, category: 'Animation',
+  },
+  {
+    name: 'Mind Game',
+    year: 2004, director: 'Masaaki Yuasa',
+    synopsis: 'A loser, shot dead, bargains with God and lives a second life inside a whale with the girl he loves.',
+    description: 'Cel-shock primary and neon psychedelia',
+    targetHues: [0, 55, 110, 165, 220, 285], jitterMax: 4, category: 'Animation',
+  },
+  {
+    name: 'The Red Turtle',
+    year: 2016, director: 'Michaël Dudok de Wit',
+    synopsis: 'A castaway on a desert island is prevented from escaping by a mysterious red turtle.',
+    description: 'Sand, ocean, and a single insistent blood-red',
+    targetHues: [25, 55, 85, 175, 205, 235], jitterMax: 3, category: 'Animation',
+  },
+  {
+    name: 'Wolfwalkers',
+    year: 2020, director: 'Tomm Moore',
+    synopsis: 'In 1650s Kilkenny, a hunter\'s daughter befriends a girl said to turn into a wolf at night.',
+    description: 'Celtic forest, copper-red hair, and lantern gold',
+    targetHues: [0, 20, 90, 115, 140, 160], jitterMax: 3, category: 'Animation',
+  },
+  {
+    name: 'Song of the Sea',
+    year: 2014, director: 'Tomm Moore',
+    synopsis: 'An Irish boy discovers his little sister is a selkie who must find her voice to save the fairies.',
+    description: 'Celtic sea blue, lighthouse gold, and myth-violet',
+    targetHues: [20, 45, 180, 210, 240, 275], jitterMax: 3, category: 'Animation',
+  },
+  {
+    name: 'Tekkonkinkreet',
+    year: 2006, director: 'Michael Arias',
+    synopsis: 'Two orphan boys defend their dying Japanese city from yakuza and a ruthless developer.',
+    description: 'Tin-town orange, urban teal, and street neon',
+    targetHues: [15, 40, 65, 185, 210, 235], jitterMax: 3, category: 'Animation',
+  },
+  {
+    name: 'Mary and Max',
+    year: 2009, director: 'Adam Elliot',
+    synopsis: 'A lonely Australian girl and a morbidly obese New Yorker become pen pals for 20 years.',
+    description: 'Claymation beige, postage red, and New York grey-blue',
+    targetHues: [25, 45, 75, 195, 220, 345], jitterMax: 3, category: 'Animation',
+  },
+  {
+    name: 'The Secret of Kells',
+    year: 2009, director: 'Tomm Moore',
+    synopsis: 'A young monk helps complete a legendary illuminated manuscript while Vikings approach.',
+    description: 'Illuminated manuscript green, gold leaf, and vellum red',
+    targetHues: [30, 55, 90, 140, 165, 355], jitterMax: 3, category: 'Animation',
+  },
+
+  // ── Cartoon (iconic, literal character palettes) ───────────────────
+  {
+    name: 'Scooby-Doo',
+    year: 1969, director: 'Hanna-Barbera',
+    synopsis: 'Four teens and a talking Great Dane solve mysteries in their Mystery Machine van.',
+    description: 'Fred blue, Daphne purple, Velma orange, Shaggy green, Scooby brown, van red',
+    targetHues: [10, 35, 110, 135, 220, 280], jitterMax: 3, category: 'Cartoon',
+  },
+  {
+    name: 'The Simpsons',
+    year: 1989, director: 'Matt Groening',
+    synopsis: 'A yellow working-class family stumbles through life in the town of Springfield.',
+    description: 'Homer blue, Bart orange, Marge\'s hair, Simpsons yellow, Lisa pearls, pink donut',
+    targetHues: [15, 45, 140, 220, 245, 330], jitterMax: 3, category: 'Cartoon',
+  },
+  {
+    name: 'SpongeBob SquarePants',
+    year: 1999, director: 'Stephen Hillenburg',
+    synopsis: 'An optimistic yellow sponge works at the Krusty Krab in the underwater town of Bikini Bottom.',
+    description: 'Sponge yellow, Squidward teal, Patrick pink, and Bikini Bottom water',
+    targetHues: [30, 55, 175, 200, 260, 335], jitterMax: 3, category: 'Cartoon',
+  },
+  {
+    name: 'The Powerpuff Girls',
+    year: 1998, director: 'Craig McCracken',
+    synopsis: 'Three kindergarten superheroes — sugar, spice, and Chemical X — protect Townsville.',
+    description: 'Blossom pink, Bubbles blue, Buttercup green',
+    targetHues: [0, 30, 130, 200, 280, 330], jitterMax: 3, category: 'Cartoon',
+  },
+  {
+    name: 'Adventure Time',
+    year: 2010, director: 'Pendleton Ward',
+    synopsis: 'A boy and his magical dog adventure across the surreal Land of Ooo.',
+    description: 'Finn blue, Jake orange, Princess Bubblegum pink, BMO teal',
+    targetHues: [15, 50, 130, 180, 220, 320], jitterMax: 3, category: 'Cartoon',
+  },
+  {
+    name: 'Gravity Falls',
+    year: 2012, director: 'Alex Hirsch',
+    synopsis: 'Twin siblings spend summer in a mystery-riddled Oregon town with their great-uncle.',
+    description: 'Pine forest green, Mystery Shack brown, red hat, and Oregon blue',
+    targetHues: [25, 55, 135, 200, 290, 320], jitterMax: 3, category: 'Cartoon',
+  },
+  {
+    name: 'Rugrats',
+    year: 1991, director: 'Klasky-Csupo',
+    synopsis: 'Toddlers — led by brave Tommy — see the world as a giant, surreal playground.',
+    description: 'Baby-primary palette — red, yellow, green, blue, violet, pink',
+    targetHues: [0, 50, 115, 170, 240, 300], jitterMax: 3, category: 'Cartoon',
+  },
+  {
+    name: 'Dexter\'s Laboratory',
+    year: 1996, director: 'Genndy Tartakovsky',
+    synopsis: 'A boy-genius builds a secret laboratory in his bedroom; his sister Dee Dee keeps breaking in.',
+    description: 'Dexter red hair, lab cyan, sister pink, and blueprint blue',
+    targetHues: [355, 20, 180, 210, 240, 280], jitterMax: 3, category: 'Cartoon',
+  },
+  {
+    name: 'Over the Garden Wall',
+    year: 2014, director: 'Patrick McHale',
+    synopsis: 'Two half-brothers become lost in a mysterious forest called The Unknown.',
+    description: 'Autumn orange, amber, lantern gold, pine, and muted blue',
+    targetHues: [15, 35, 55, 75, 155, 195], jitterMax: 3, category: 'Cartoon',
+  },
+  {
+    name: 'Frozen',
+    year: 2013, director: 'Chris Buck & Jennifer Lee',
+    synopsis: 'Princess Anna sets out to find her estranged sister, whose icy powers trapped Arendelle in winter.',
+    description: 'Six shades of ice — cyan, turquoise, royal, navy, lavender, periwinkle',
+    targetHues: [170, 195, 215, 235, 260, 285], jitterMax: 3, category: 'Cartoon',
+  },
+  {
+    name: 'The Little Mermaid',
+    year: 1989, director: 'Ron Clements & John Musker',
+    synopsis: 'Ariel, a mermaid princess, trades her voice to walk on land and find the human prince she loves.',
+    description: 'Ariel red hair, green fin, purple shell, ocean blue, coral pink',
+    targetHues: [0, 30, 130, 160, 220, 285], jitterMax: 3, category: 'Cartoon',
+  },
+  {
+    name: 'Snow White and the Seven Dwarfs',
+    year: 1937, director: 'David Hand',
+    synopsis: 'A fair princess, fleeing a jealous queen, hides in a cottage with seven dwarfs.',
+    description: 'Apple red, gold button, yellow skirt, forest green, royal blue, lips pink',
+    targetHues: [0, 30, 55, 120, 215, 340], jitterMax: 3, category: 'Cartoon',
   },
 ];
 
@@ -512,6 +820,47 @@ const FILM_DISTRACTORS = {
   'Eternal Sunshine of the Spotless Mind': ['Being John Malkovich', 'Her'],
   'Joker': ['Taxi Driver', 'The King of Comedy'],
   'Barbie': ['Mean Girls', 'Clueless'],
+  // Movies (obscure)
+  'Enter the Void': ['Climax', 'Love'],
+  'Only God Forgives': ['Drive', 'The Neon Demon'],
+  'Mandy': ['Color Out of Space', 'Beyond the Black Rainbow'],
+  'The Color of Pomegranates': ['Stalker', 'Andrei Rublev'],
+  'Chungking Express': ['In the Mood for Love', 'Fallen Angels'],
+  // TV
+  'Too Old to Die Young': ['The Neon Demon', 'Miami Vice'],
+  'The Young Pope': ['The New Pope', 'The Great Beauty'],
+  'Halt and Catch Fire': ['Mr. Robot', 'Silicon Valley'],
+  'Legion': ['FLCL', 'The OA'],
+  'The Terror': ['The North Water', 'The Lighthouse'],
+  'Devs': ['Ex Machina', 'Annihilation'],
+  'Rectify': ['True Detective', 'Ozark'],
+  'Sharp Objects': ['Big Little Lies', 'True Detective'],
+  'The Leftovers': ['Lost', 'Station Eleven'],
+  'Patrick Melrose': ['The Crown', 'Succession'],
+  // Animation
+  'Princess Mononoke': ['Nausicaä', 'Howl\'s Moving Castle'],
+  'Your Name': ['Weathering With You', '5 Centimeters per Second'],
+  'Paprika': ['Perfect Blue', 'Millennium Actress'],
+  'Mind Game': ['Devilman Crybaby', 'The Tatami Galaxy'],
+  'The Red Turtle': ['The Tale of the Princess Kaguya', 'Ernest & Celestine'],
+  'Wolfwalkers': ['Song of the Sea', 'The Breadwinner'],
+  'Song of the Sea': ['Wolfwalkers', 'The Secret of Kells'],
+  'Tekkonkinkreet': ['Akira', 'Mind Game'],
+  'Mary and Max': ['Anomalisa', 'Fantastic Mr. Fox'],
+  'The Secret of Kells': ['Song of the Sea', 'Wolfwalkers'],
+  // Cartoon
+  'Scooby-Doo': ['The Flintstones', 'Yogi Bear'],
+  'The Simpsons': ['Family Guy', 'King of the Hill'],
+  'SpongeBob SquarePants': ['Rocko\'s Modern Life', 'Ren & Stimpy'],
+  'The Powerpuff Girls': ['Dexter\'s Laboratory', 'Samurai Jack'],
+  'Adventure Time': ['Regular Show', 'Over the Garden Wall'],
+  'Gravity Falls': ['Amphibia', 'The Owl House'],
+  'Rugrats': ['Doug', 'Hey Arnold!'],
+  'Dexter\'s Laboratory': ['The Powerpuff Girls', 'Johnny Bravo'],
+  'Over the Garden Wall': ['Gravity Falls', 'Infinity Train'],
+  'Frozen': ['Tangled', 'Moana'],
+  'The Little Mermaid': ['Beauty and the Beast', 'Aladdin'],
+  'Snow White and the Seven Dwarfs': ['Cinderella', 'Sleeping Beauty'],
 };
 
 // Featured one-off overrides for specific dates. These win over the
@@ -600,27 +949,52 @@ function minAdjacentGap(hues) {
 // indices, then day-of-month picks one. Same date worldwide = same
 // palette. A new month rerolls the order.
 // ────────────────────────────────────────────────────────────────────
-function monthlyShuffledThemeIndex(dateStr) {
+// Weekday → category rotation. Each weekday draws from a fixed category
+// pool, shuffled monthly within that category. Gives daily variety
+// instead of one flat shuffle across all palettes.
+//   Mon  Tue  Wed  Thu        Fri      Sat  Sun
+// [Movies, TV, Movies, Animation, Cartoon, Movies, TV]
+// JS Date.getDay(): 0=Sun..6=Sat. We remap to 0=Mon..6=Sun.
+const CATEGORY_SCHEDULE = ['Movies', 'TV', 'Movies', 'Animation', 'Cartoon', 'Movies', 'TV'];
+
+function categoryForDate(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
-  const monthKey = `${y}-${String(m).padStart(2, '0')}`;
-  let state = fnv1a64(monthKey);
-  const N = CINEMA_PALETTES.length;
-  const indices = Array.from({ length: N }, (_, i) => i);
-  // Fisher-Yates: consume one uniform per swap, deterministic from state.
-  for (let i = N - 1; i > 0; i--) {
-    let u;
-    [state, u] = nextUniform(state);
-    const j = Math.floor(u * (i + 1));
-    [indices[i], indices[j]] = [indices[j], indices[i]];
-  }
-  // Day-of-month 1..31 wraps around N if a month has more days than palettes.
-  return indices[(d - 1) % N];
+  const jsDay = new Date(y, m - 1, d).getDay();
+  return CATEGORY_SCHEDULE[(jsDay + 6) % 7];
 }
 
 function themeForDate(dateStr) {
   const override = FEATURED_OVERRIDES[dateStr];
   if (override) return override;
-  return CINEMA_PALETTES[monthlyShuffledThemeIndex(dateStr)];
+
+  const category = categoryForDate(dateStr);
+  const pool = [];
+  for (let i = 0; i < CINEMA_PALETTES.length; i++) {
+    if (CINEMA_PALETTES[i].category === category) pool.push(i);
+  }
+  if (pool.length === 0) return CINEMA_PALETTES[0]; // safety
+
+  // Monthly Fisher-Yates over this category's pool, seeded by YYYY-MM + category.
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const monthKey = `${y}-${String(m).padStart(2, '0')}`;
+  let state = fnv1a64(monthKey + '|' + category);
+  const shuffled = pool.slice();
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    let u;
+    [state, u] = nextUniform(state);
+    const j = Math.floor(u * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  // Count how many days of this category have fallen in this month,
+  // from day 1 through d (inclusive). Count-1 picks the slot.
+  let categoryDayCount = 0;
+  for (let day = 1; day <= d; day++) {
+    const dDay = new Date(y, m - 1, day).getDay();
+    if (CATEGORY_SCHEDULE[(dDay + 6) % 7] === category) categoryDayCount++;
+  }
+  const pickIdx = (categoryDayCount - 1) % shuffled.length;
+  return CINEMA_PALETTES[shuffled[pickIdx]];
 }
 
 // ────────────────────────────────────────────────────────────────────
