@@ -210,7 +210,7 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // discarded and a fresh puzzle is generated. v13 bump is justified:
 // every palette has been renamed and four were re-tuned, so
 // saved.themeName and prior feedback colors would mismatch.
-const GEN_VERSION          = 'v30-prototype-cal-labels-2026-04-22';
+const GEN_VERSION          = 'v31-ultrareview-fixes-2026-04-22';
 const SCORE_HISTORY_KEY    = 'hueday-score-history';
 const DISPUTES_KEY         = 'hueday-disputes';
 
@@ -1778,7 +1778,7 @@ function computeStats(history, todayStr) {
 // Build a Wordle-style shareable emoji grid from the played rows.
 // ⬛ for dark-theme grey, 🟩 green, 🟨 yellow. Header line includes puzzle
 // number, category, and score shorthand. URL at bottom.
-function buildShareText({ puzzleNum, category, solved, attempts, rows, score, grade }) {
+function buildShareText({ puzzleNum, category, solved, attempts, rows, grade }) {
   const header = `Hueday #${puzzleNum} · ${category} — ${solved ? attempts : 'X'}/6  ${grade ? grade : ''}`.trim();
   const used = rows.filter(r => r && r.submitted);
   const grid = used.map(r =>
@@ -2537,7 +2537,7 @@ function CalendarArchive({ entries, scoreHistory, todayStr, onSelectDate, onRand
             key={ds}
             onClick={interactive ? () => onSelectDate(ds) : undefined}
             disabled={!interactive}
-            aria-label={isToday ? 'Today (current puzzle), ' + cat : (interactive ? 'Open puzzle for ' + ds + ' (' + cat + ')' + (wasSolved ? ', solved' : (hist ? ', played' : '')) : 'Unavailable')}
+            aria-label={isToday ? 'Today (current puzzle)' : (interactive ? 'Open puzzle for ' + ds + (hist ? ' (' + cat + (wasSolved ? ', solved' : ', played') + ')' : '') : 'Unavailable')}
             style={{
               aspectRatio: '1 / 1.25',
               background: PROTOTYPE_CAL ? catStyle.bg : 'transparent',
@@ -4296,15 +4296,18 @@ function App() {
     };
   }, [practiceMode, state, currentRow, rows, hintsUsed, filmGuessCorrect]);
 
+  const inPreview = virtualDateOffset !== 0;
+  const virtualDateStr = inPreview ? dateStr : null;
+
   // Retention stats — streak / win-rate / played. Recomputed whenever the
   // daily game resolves so a fresh win bumps the streak immediately.
+  // Declared after `inPreview` so the useMemo's deps array doesn't read it
+  // before initialization (Babel-standalone's `const`→`var` transform was
+  // silently hiding a TDZ error here).
   const playStats = React.useMemo(() => {
     if (practiceMode || inPreview) return null;
     return computeStats(loadScoreHistory(), dateStr);
   }, [practiceMode, inPreview, dateStr, state, dailyScoreInfo]);
-
-  const inPreview = virtualDateOffset !== 0;
-  const virtualDateStr = inPreview ? dateStr : null;
 
   // ── Mid-game mood hint (Feature A) ──
   // Shown only on the daily track (including preview mode for consistency)
@@ -4440,7 +4443,6 @@ function App() {
                       solved: dailyScoreInfo.solved,
                       attempts: dailyScoreInfo.attempts,
                       rows,
-                      score: dailyScoreInfo.score,
                       grade: scoreGrade(dailyScoreInfo.score).label,
                     })} />
                   )}
