@@ -210,7 +210,7 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // discarded and a fresh puzzle is generated. v13 bump is justified:
 // every palette has been renamed and four were re-tuned, so
 // saved.themeName and prior feedback colors would mismatch.
-const GEN_VERSION          = 'v29-calendar-continuous-2026-04-22';
+const GEN_VERSION          = 'v30-prototype-cal-labels-2026-04-22';
 const SCORE_HISTORY_KEY    = 'hueday-score-history';
 const DISPUTES_KEY         = 'hueday-disputes';
 
@@ -2475,13 +2475,34 @@ function CalendarArchive({ entries, scoreHistory, todayStr, onSelectDate, onRand
   const ymd = (y, m, d) => y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
   const dowHeaders = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-  // Compute the list of (year, month) pairs from LAUNCH month to today's month.
+  // ──────────────────────────────────────────────────────────────────
+  // PROTOTYPE MODE — testing only. Unlocks future days for tap-through,
+  // tints each cell by its scheduled category, and labels it. Makes it
+  // easy to see at a glance which day is Movies / TV / Anime / Cartoon.
+  // Revert for production by setting PROTOTYPE_CAL = false.
+  // ──────────────────────────────────────────────────────────────────
+  const PROTOTYPE_CAL = true;
+  const CAT_PALETTE = {
+    Movies:  { bg: 'rgba(59,130,246,0.14)',  ink: '#60a5fa', short: 'Movie' },
+    TV:      { bg: 'rgba(245,158,66,0.14)',  ink: '#f59e42', short: 'TV' },
+    Anime:   { bg: 'rgba(236,72,153,0.14)',  ink: '#f472b6', short: 'Anime' },
+    Cartoon: { bg: 'rgba(34,197,94,0.14)',   ink: '#34d399', short: 'Cartoon' },
+  };
+
+  // Compute months to render. In prototype mode, show 6 months starting
+  // at launch so the weekday rotation is visible across future days.
   const months = React.useMemo(() => {
     const out = [];
     const [ly, lm] = LAUNCH_DATE.split('-').map(Number);
     const [ty, tm] = todayStr.split('-').map(Number);
     let y = ly, m = lm;
-    while (y < ty || (y === ty && m <= tm)) {
+    // End month: 3 months past today in prototype mode, else today's month.
+    let endY = ty, endM = tm;
+    if (PROTOTYPE_CAL) {
+      endM = tm + 3;
+      while (endM > 12) { endM -= 12; endY++; }
+    }
+    while (y < endY || (y === endY && m <= endM)) {
       out.push({ y, m });
       m++;
       if (m > 12) { m = 1; y++; }
@@ -2497,34 +2518,37 @@ function CalendarArchive({ entries, scoreHistory, todayStr, onSelectDate, onRand
     }}>
       {cells.map(({ ds, dayNum, isBlank }, ci) => {
         if (isBlank) {
-          return <div key={'b' + ci} style={{ aspectRatio: '1 / 1.15' }} />;
+          return <div key={'b' + ci} style={{ aspectRatio: '1 / 1.25' }} />;
         }
         const isToday = ds === todayStr;
         const isFuture = ds > todayStr;
         const isPreLaunch = ds < LAUNCH_DATE;
-        const interactive = !isToday && !isFuture && !isPreLaunch;
+        // Prototype mode: every non-blank cell is clickable (even future).
+        const interactive = PROTOTYPE_CAL ? !isToday && !isPreLaunch : (!isToday && !isFuture && !isPreLaunch);
         const hist = scoreHistory[ds] || null;
         const wasSolved = hist ? wasSolvedOf(hist) : false;
         const pNum = puzzleNumberFor(ds);
         const markerColor = wasSolved ? '#22c55e' : null;
         const bonusPip = hist && hist.filmBonus === true;
+        const cat = categoryForDate(ds); // Movies | TV | Anime | Cartoon
+        const catStyle = CAT_PALETTE[cat] || CAT_PALETTE.Movies;
         return (
           <button
             key={ds}
             onClick={interactive ? () => onSelectDate(ds) : undefined}
             disabled={!interactive}
-            aria-label={isToday ? 'Today (current puzzle)' : (interactive ? 'Open puzzle for ' + ds + (wasSolved ? ', solved' : (hist ? ', played' : ', not yet played')) : 'Unavailable')}
+            aria-label={isToday ? 'Today (current puzzle), ' + cat : (interactive ? 'Open puzzle for ' + ds + ' (' + cat + ')' + (wasSolved ? ', solved' : (hist ? ', played' : '')) : 'Unavailable')}
             style={{
-              aspectRatio: '1 / 1.15',
-              background: 'transparent',
+              aspectRatio: '1 / 1.25',
+              background: PROTOTYPE_CAL ? catStyle.bg : 'transparent',
               border: 'none',
               display: 'flex', flexDirection: 'column',
               alignItems: 'stretch', justifyContent: 'flex-start',
-              padding: '6px 4px 4px',
-              color: (isFuture || isPreLaunch) ? HD_DASHED : HD_TEXT,
+              padding: '6px 2px 4px',
+              color: isPreLaunch ? HD_DASHED : HD_TEXT,
               fontFamily: HD_FONT,
               cursor: interactive ? 'pointer' : 'default',
-              opacity: (isFuture || isPreLaunch) ? 0.28 : 1,
+              opacity: isPreLaunch ? 0.28 : 1,
               position: 'relative',
             }}
           >
@@ -2539,14 +2563,23 @@ function CalendarArchive({ entries, scoreHistory, todayStr, onSelectDate, onRand
                 fontVariantNumeric: 'tabular-nums',
               }}>{dayNum}</div>
             </div>
-            {/* Sub-line — puzzle #N (very muted) */}
+            {/* Sub-line — puzzle #N */}
             <div style={{
               textAlign: 'center',
               fontSize: 9, lineHeight: 1.1, marginTop: 2,
-              color: isToday ? HD_MUTED : HD_MUTED,
+              color: HD_MUTED,
               fontVariantNumeric: 'tabular-nums',
-              opacity: (isFuture || isPreLaunch) ? 0.6 : 1,
             }}>{pNum >= 1 ? '#' + pNum : ''}</div>
+            {/* Prototype: category label colored by the category */}
+            {PROTOTYPE_CAL && !isPreLaunch && (
+              <div style={{
+                textAlign: 'center',
+                fontSize: 8.5, lineHeight: 1.1, marginTop: 2,
+                fontWeight: 700, letterSpacing: 0.4,
+                color: catStyle.ink,
+                textTransform: 'uppercase',
+              }}>{catStyle.short}</div>
+            )}
             {/* Status pips */}
             <div style={{
               display: 'flex', gap: 3, alignItems: 'center', justifyContent: 'center',
@@ -2624,11 +2657,30 @@ function CalendarArchive({ entries, scoreHistory, todayStr, onSelectDate, onRand
         );
       })}
 
-      {/* Bottom bar — small random-jump pill + tiny legend */}
+      {/* Bottom bar — in prototype mode shows the category-color legend. */}
+      {PROTOTYPE_CAL && (
+        <div style={{
+          display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center',
+          padding: '10px 8px 4px', gap: 10,
+          borderTop: '1px solid ' + HD_BORDER, marginTop: 4,
+          fontSize: 9, letterSpacing: 0.8, textTransform: 'uppercase', fontWeight: 700,
+        }}>
+          {Object.entries(CAT_PALETTE).map(([k, v]) => (
+            <span key={k} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              padding: '3px 8px', borderRadius: 6, background: v.bg, color: v.ink,
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: v.ink }}/>
+              {k}
+            </span>
+          ))}
+        </div>
+      )}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '10px 8px 2px', gap: 8,
-        borderTop: '1px solid ' + HD_BORDER, marginTop: 4,
+        padding: '8px 8px 2px', gap: 8,
+        borderTop: PROTOTYPE_CAL ? 'none' : '1px solid ' + HD_BORDER,
+        marginTop: PROTOTYPE_CAL ? 0 : 4,
       }}>
         <div style={{
           display: 'flex', gap: 10, alignItems: 'center',
@@ -2642,6 +2694,12 @@ function CalendarArchive({ entries, scoreHistory, todayStr, onSelectDate, onRand
             <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#fbbf24' }}/>
             Bonus
           </span>
+          {PROTOTYPE_CAL && (
+            <span style={{
+              fontSize: 8.5, fontWeight: 700, color: '#f59e42', letterSpacing: 1.2,
+              textTransform: 'uppercase',
+            }}>Prototype · future unlocked</span>
+          )}
         </div>
         <button
           onClick={onRandomJump}
@@ -4135,15 +4193,15 @@ function App() {
     setVirtualDateOffset(0);
     loadPuzzleForOffset(0);
   };
-  // Archive entry tapped → jump to a past date (negative offset).
-  // Session-only; does not persist (loadPuzzleForOffset with offset !== 0
-  // resets to a fresh ephemeral session).
+  // Archive entry tapped → jump to a past date (negative offset). In
+  // prototype calendar mode future offsets are ALSO allowed so testers
+  // can preview upcoming days' category rotation.
   const onSelectArchiveDate = (archiveDateStr) => {
     const realToday = localDateString();
     const a = new Date(archiveDateStr + 'T12:00:00');
     const t = new Date(realToday      + 'T12:00:00');
     const diffDays = Math.round((a - t) / (1000 * 60 * 60 * 24));
-    if (diffDays >= 0) return; // safety: only past days via archive
+    if (diffDays === 0) return; // today is played on the main screen
     setVirtualDateOffset(diffDays);
     loadPuzzleForOffset(diffDays);
     setArchiveOpen(false);
