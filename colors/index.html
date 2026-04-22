@@ -5,8 +5,12 @@
 <title>Hueday mini — playable prototype</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
 <meta name="theme-color" content="#141414" />
+<meta name="description" content="A daily color puzzle inspired by cinema palettes." />
 <meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<!-- Inline PWA manifest (base64 data URL — keeps the single-file constraint). -->
+<link rel="manifest" href="data:application/manifest+json;charset=utf-8;base64,eyJuYW1lIjoiSHVlZGF5Iiwic2hvcnRfbmFtZSI6Ikh1ZWRheSIsImRlc2NyaXB0aW9uIjoiQSBkYWlseSBjb2xvciBwdXp6bGUgaW5zcGlyZWQgYnkgY2luZW1hIHBhbGV0dGVzIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzE0MTQxNCIsInRoZW1lX2NvbG9yIjoiIzE0MTQxNCIsInN0YXJ0X3VybCI6Ii4vIiwib3JpZW50YXRpb24iOiJwb3J0cmFpdCJ9" />
 <!-- Cache-busting: prototype iterates fast; we want fresh HTML every load. -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
@@ -106,17 +110,16 @@
 
 <script type="text/babel">
 // ═══════════════════════════════════════════════════════════════════
-// Hueday mini — playable prototype (web; pre-Mac trial)
+// Hueday — playable web game
 //
 // Implements spec §2 (puzzle generator), §3 (feedback), §5 (state),
 // §6 (input), §7 (visuals, feedback rendering), §8 (midnight rollover).
 //
-// v4 — Cinema-palette themes with a deterministic monthly shuffle.
-// 32 iconic-cinema palettes, each with 6 anchored target hues + small
-// ±jitter. A month's rotation is a Fisher-Yates shuffle seeded from the
-// YYYY-MM key, so every player worldwide gets the same sequence.
-// FEATURED_OVERRIDES still wins for specific dates (e.g. Friends Apr 22).
-// Legacy hueRanges path is preserved as a fallback.
+// v13-polish — 31 original palettes inspired by cinema moods, each
+// with 6 anchored target hues + small ±jitter. Palette names are
+// generic/trademark-safe. A month's rotation is a Fisher-Yates shuffle
+// seeded from the YYYY-MM key, so every player worldwide gets the same
+// sequence. FEATURED_OVERRIDES wins for specific dates if set.
 // ═══════════════════════════════════════════════════════════════════
 
 const HD_BG      = '#141414';
@@ -134,92 +137,55 @@ const HD_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Displ
 const STORAGE_KEY          = 'hueday-mini-state-v1';
 const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 
-// Bump this whenever the generator/theme algorithm changes in a way that
-// makes prior saves stale. On load, if saved.genVersion !== GEN_VERSION,
-// the saved state is discarded and a fresh puzzle is generated.
-const GEN_VERSION          = 'v12-midhint-taprow-anims-2026-04-22';
+// ONLY bump this when the save FORMAT changes (theme name, feedback
+// structure, puzzle generation). Do NOT bump on pure UI/visual changes.
+// On load, if saved.genVersion !== GEN_VERSION, the saved state is
+// discarded and a fresh puzzle is generated. v13 bump is justified:
+// every palette has been renamed and four were re-tuned, so
+// saved.themeName and prior feedback colors would mismatch.
+const GEN_VERSION          = 'v13-polish-2026-04-22';
 const SCORE_HISTORY_KEY    = 'hueday-score-history';
 
 // ────────────────────────────────────────────────────────────────────
-// Cinema palettes (v4)
-//
-// Best-guess TMDB poster paths per film. Poster URLs resolve to
-//   https://image.tmdb.org/t/p/w342{path}
-// Some may be stale/wrong — the `<img onError>` fallback renders a
-// synthesized color-palette poster from the film's own 6 target hues.
-// PROTOTYPE ONLY — ship must replace with licensed imagery or kill.
-const TMDB_POSTER_PATHS = {
-  'Blade Runner 2049': '/gajva2L0rPYkEWjzgFlBXCAVBE5.jpg',
-  'Moonrise Kingdom': '/fhYoM6TztATFVLKCB1FLEwZzE91.jpg',
-  'Mad Max: Fury Road': '/8tZYtuWezp8JbcsvHYO0O46tFbo.jpg',
-  'The Grand Budapest Hotel': '/eWdyYQreja6JGCzqHWXpWHDrrPo.jpg',
-  'Amélie': '/f0uorE7K7ggHfr8r7pFsOC8mynS.jpg',
-  'Drive': '/602vevIURmpDfzbnv5Ubi6wIkQm.jpg',
-  'La La Land': '/uDO8zWDhfWwoFdKS4fzkUJt0Rf0.jpg',
-  'Her': '/8ZNbP62Ba6couH0eGmAyRHbsQIq.jpg',
-  'The Matrix': '/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg',
-  'Inception': '/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg',
-  'Pulp Fiction': '/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg',
-  'The Shining': '/xazWoLealQwEgqZ89MLZklLZD3k.jpg',
-  'Drive My Car': '/5zAZkBF1Mj64WV1EtNqeNiFgNg9.jpg',
-  'In the Mood for Love': '/svCktL47U39uNNcxMOKrtNy4CsC.jpg',
-  'Spirited Away': '/39wmItIWsg5sZMyRUHLkWBcuVCM.jpg',
-  'Akira': '/neZ0ykCsZTYRBCHnFMJ6BlOZtTM.jpg',
-  '2001: A Space Odyssey': '/ve72VxNqjGM69Uky4WTo2bK6rfq.jpg',
-  'Call Me By Your Name': '/hSY9lMKiFKWgAatxf8qI5GdVi5O.jpg',
-  'Portrait of a Lady on Fire': '/tpw7EmtFkRGRJxWeQW03ARc8OxG.jpg',
-  'Dune (2021)': '/d5NXSklXo0qyIYkgV94XAgMIckC.jpg',
-  'The Neon Demon': '/kBCRGvfTGuywLDvzeG4NUQxmL1H.jpg',
-  'Parasite': '/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg',
-  'Killers of the Flower Moon': '/dB6Krk806zeqd0YNp2ngQ9zXteH.jpg',
-  'Tenet': '/k68nPLbIST6NP96JmTxmZijEvCA.jpg',
-  'Everything Everywhere All at Once': '/w3LxiVYdWWRvEVdn5RYq6jIqkb1.jpg',
-  'The French Dispatch': '/lhd1lsjBxXHsj4ilIWB4jpmLlMg.jpg',
-  'Lost in Translation': '/b6qUu00iIIkXX13szFy1S0eP5oC.jpg',
-  'A Clockwork Orange': '/4sHeTAp65WrSSuc05nRBKddhBxO.jpg',
-  'Eternal Sunshine of the Spotless Mind': '/nuHaJMgVKlT5KL2T3dmmhQQTpLI.jpg',
-  'The Lighthouse': '/6kOqWvchnf6CUoQHfGQuazc6VnY.jpg',
-  'Joker (2019)': '/udDclJoHjfjb8Ekgsd4FDteOkCU.jpg',
-  'Barbie (2023)': '/iuFNMS8U5cb6xfzi51Dbkovj7vM.jpg',
-};
+// Cinema-inspired palettes (v13-polish)
+// ────────────────────────────────────────────────────────────────────
 
 // Mid-game single-word mood hints. Shown between the scoring stack and
 // the guess grid after the player has submitted ≥3 rows on the daily
 // track. NOT a hint penalty — automatic and universal. Words chosen to
 // evoke the palette's mood WITHOUT spoiling the movie title.
 const MID_HINTS = {
-  'Blade Runner 2049': 'neon',
-  'Moonrise Kingdom': 'mustard',
-  'Mad Max: Fury Road': 'dust',
-  'The Grand Budapest Hotel': 'pastels',
-  'Amélie': 'warmth',
-  'Drive': 'synth',
-  'La La Land': 'dusk',
-  'Her': 'peach',
-  'The Matrix': 'monochrome',
-  'Inception': 'gilded',
-  'Pulp Fiction': 'diner',
-  'The Shining': 'dread',
-  'Drive My Car': 'restraint',
-  'In the Mood for Love': 'longing',
-  'Spirited Away': 'spirit',
-  'Akira': 'velocity',
-  '2001: A Space Odyssey': 'cosmic',
-  'Call Me By Your Name': 'summer',
-  'Portrait of a Lady on Fire': 'bonfire',
-  'Dune (2021)': 'sand',
-  'The Neon Demon': 'glare',
-  'Parasite': 'basement',
-  'Killers of the Flower Moon': 'earth',
-  'Tenet': 'inverted',
-  'Everything Everywhere All at Once': 'multiverse',
-  'The French Dispatch': 'whimsy',
-  'Lost in Translation': 'karaoke',
-  'A Clockwork Orange': 'clinical',
-  'Eternal Sunshine of the Spotless Mind': 'memory',
-  'The Lighthouse': 'storm',
-  'Joker (2019)': 'stairwell',
-  'Barbie (2023)': 'plastic',
+  'Neon Rain': 'neon',
+  'Summer Camp': 'mustard',
+  'Fury Dust': 'dust',
+  'Pastel Hotel': 'pastels',
+  'Paris Kitchen': 'warmth',
+  'Neon Highway': 'synth',
+  'Sunset Boulevard': 'dusk',
+  'Warm Distance': 'peach',
+  'Code Cascade': 'cascade',
+  'Gilded Dream': 'gilded',
+  'Diner Noir': 'diner',
+  'Overlook Halls': 'dread',
+  'Blue Silence': 'restraint',
+  'Hong Kong Rain': 'longing',
+  'Bathhouse': 'spirit',
+  'Neo-Tokyo': 'velocity',
+  'Monolith': 'cosmic',
+  'Italian Summer': 'summer',
+  'Bonfire Portrait': 'bonfire',
+  'Desert Messiah': 'sand',
+  'Runway': 'glare',
+  'Basement': 'basement',
+  'Osage Earth': 'earth',
+  'Inverse': 'inverted',
+  'Multiverse': 'multiverse',
+  'Dispatch': 'whimsy',
+  'Tokyo Neon': 'karaoke',
+  'Milk Bar': 'clinical',
+  'Beach Memory': 'memory',
+  'Stairwell': 'stairwell',
+  'Pink Plastic': 'plastic',
 };
 
 function midHintFor(theme) {
@@ -227,200 +193,195 @@ function midHintFor(theme) {
   return MID_HINTS[theme.name] || null;
 }
 
-// 32 iconic-cinema palettes. Each defines exactly 6 anchored target
+// 31 cinema-inspired palettes. Each defines exactly 6 anchored target
 // hues + a small ±jitter applied per day. No stratification, no
 // widening — the targets ARE the targets. Every palette is verified
-// to have ≥18° adjacent separation on the wheel (wrap-aware).
+// to have ≥18° adjacent separation on the wheel (wrap-aware). Names
+// are generic / trademark-safe by design.
 // ────────────────────────────────────────────────────────────────────
 const CINEMA_PALETTES = [
   {
-    name: 'Blade Runner 2049',
+    name: 'Neon Rain',
     description: 'Neon haze of orange, cyan, and bruised magenta',
     targetHues: [18, 40, 185, 210, 290, 325],
     jitterMax: 4,
   },
   {
-    name: 'Moonrise Kingdom',
+    name: 'Summer Camp',
     description: 'Warm mustard, canvas tan, and dusty teal summer camp',
     targetHues: [30, 55, 85, 175, 200, 280],
     jitterMax: 3,
   },
   {
-    name: 'Mad Max: Fury Road',
+    name: 'Fury Dust',
     description: 'Scorched orange desert against deep teal shadow',
     targetHues: [15, 35, 60, 180, 200, 225],
     jitterMax: 3,
   },
   {
-    name: 'The Grand Budapest Hotel',
+    name: 'Pastel Hotel',
     description: 'Confectionery pinks, lavenders, and soft ruby reds',
     targetHues: [340, 10, 30, 60, 280, 300],
     jitterMax: 3,
   },
   {
-    name: 'Amélie',
+    name: 'Paris Kitchen',
     description: 'Emerald green, crimson red, and a warm Parisian yellow',
     targetHues: [355, 20, 45, 70, 140, 165],
     jitterMax: 3,
   },
   {
-    name: 'Drive',
+    name: 'Neon Highway',
     description: 'Hot pink neon, cool teal, and midnight synthwave purple',
     targetHues: [25, 180, 275, 300, 330, 355],
     jitterMax: 3,
   },
   {
-    name: 'La La Land',
+    name: 'Sunset Boulevard',
     description: 'Sunset yellow, navy twilight, and magenta stage lights',
     targetHues: [20, 45, 220, 250, 320, 350],
     jitterMax: 3,
   },
   {
-    name: 'Her',
+    name: 'Warm Distance',
     description: 'Soft coral, warm peach, and aching violet intimacy',
     targetHues: [15, 35, 55, 270, 295, 320],
     jitterMax: 3,
   },
   {
-    name: 'The Matrix',
-    description: 'Six shades of code-green cascading down the screen',
-    targetHues: [65, 85, 110, 135, 160, 185],
+    name: 'Code Cascade',
+    description: 'Six shades of cascading code-green',
+    targetHues: [85, 105, 125, 145, 165, 185],
     jitterMax: 3,
   },
   {
-    name: 'Inception',
+    name: 'Gilded Dream',
     description: 'Gilded gold, burnt umber, and cold dreamscape teal',
     targetHues: [25, 45, 65, 180, 200, 220],
     jitterMax: 3,
   },
   {
-    name: 'Pulp Fiction',
-    description: 'Smoky red, ochre diner light, and olive pulp-noir',
-    targetHues: [355, 20, 45, 70, 90, 115],
+    name: 'Diner Noir',
+    description: 'Smoky red, ochre lights, warm noir',
+    targetHues: [340, 0, 20, 40, 60, 80],
     jitterMax: 3,
   },
   {
-    name: 'The Shining',
+    name: 'Overlook Halls',
     description: 'Carpet crimson, overlook yellow, and navy hallway dread',
     targetHues: [5, 30, 55, 80, 215, 240],
     jitterMax: 3,
   },
   {
-    name: 'Drive My Car',
+    name: 'Blue Silence',
     description: 'Muted blue-grey, deep red lacquer, and warm cream silence',
     targetHues: [20, 45, 195, 220, 260, 355],
     jitterMax: 3,
   },
   {
-    name: 'In the Mood for Love',
+    name: 'Hong Kong Rain',
     description: 'Saturated red cheongsam, warm orange, and deep jade green',
     targetHues: [10, 30, 140, 160, 185, 345],
     jitterMax: 3,
   },
   {
-    name: 'Spirited Away',
+    name: 'Bathhouse',
     description: 'Fantasy teal bathhouse, warm red lanterns, and spirit gold',
     targetHues: [0, 30, 50, 175, 200, 220],
     jitterMax: 3,
   },
   {
-    name: 'Akira',
+    name: 'Neo-Tokyo',
     description: 'Neon red bike, electric blue, and Neo-Tokyo violet',
     targetHues: [10, 30, 210, 235, 260, 350],
     jitterMax: 3,
   },
   {
-    name: '2001: A Space Odyssey',
-    description: 'Monolith red, cosmic amber, and cold interstellar blue',
-    targetHues: [20, 40, 60, 210, 235, 355],
+    name: 'Monolith',
+    description: 'Red alert, amber interior, cold interstellar void',
+    targetHues: [355, 20, 45, 200, 225, 250],
     jitterMax: 3,
   },
   {
-    name: 'Call Me By Your Name',
+    name: 'Italian Summer',
     description: 'Peach, coral, olive groves, and sun-bleached Italian yellow',
     targetHues: [15, 35, 55, 75, 95, 340],
     jitterMax: 3,
   },
   {
-    name: 'Portrait of a Lady on Fire',
+    name: 'Bonfire Portrait',
     description: 'Deep ocean blue, warm red dress, and bonfire orange',
     targetHues: [0, 25, 45, 210, 235, 260],
     jitterMax: 3,
   },
   {
-    name: 'Dune (2021)',
+    name: 'Desert Messiah',
     description: 'Sand orange, deep amber, ochre dust, and teal shadow',
     targetHues: [25, 45, 65, 180, 205, 230],
     jitterMax: 3,
   },
   {
-    name: 'The Neon Demon',
+    name: 'Runway',
     description: 'Electric magenta, deep violet, and runway hot pink',
     targetHues: [15, 250, 275, 300, 325, 350],
     jitterMax: 3,
   },
   {
-    name: 'Parasite',
+    name: 'Basement',
     description: 'Muted grey-blue, warm wood brown, and deep basement green',
     targetHues: [25, 45, 140, 165, 200, 225],
     jitterMax: 3,
   },
   {
-    name: 'Killers of the Flower Moon',
+    name: 'Osage Earth',
     description: 'Russet, deep red earth, ochre, and sun-worn brown',
     targetHues: [15, 35, 55, 75, 330, 355],
     jitterMax: 3,
   },
   {
-    name: 'Tenet',
+    name: 'Inverse',
     description: 'Icy cyan, warm orange, and muted inverted navy',
     targetHues: [15, 35, 180, 200, 220, 240],
     jitterMax: 3,
   },
   {
-    name: 'Everything Everywhere All at Once',
+    name: 'Multiverse',
     description: 'A full-wheel rainbow of parallel-universe hues',
     targetHues: [0, 60, 120, 180, 240, 300],
     jitterMax: 4,
   },
   {
-    name: 'The French Dispatch',
-    description: 'Wes Anderson yellow, pink, minty teal, and soft lavender',
+    name: 'Dispatch',
+    description: 'Pale yellow, pink, minty teal, and soft lavender whimsy',
     targetHues: [50, 75, 160, 180, 280, 340],
     jitterMax: 3,
   },
   {
-    name: 'Lost in Translation',
+    name: 'Tokyo Neon',
     description: 'Neon Tokyo pink, cool grey-blue, warm yellow, and mauve',
     targetHues: [50, 210, 235, 285, 315, 340],
     jitterMax: 3,
   },
   {
-    name: 'A Clockwork Orange',
-    description: 'Milk-bar white, red-orange unease, and cold clinical blue',
-    targetHues: [10, 30, 50, 205, 225, 245],
+    name: 'Milk Bar',
+    description: 'Vivid unease red and clinical clinical blue',
+    targetHues: [355, 15, 40, 205, 230, 255],
     jitterMax: 3,
   },
   {
-    name: 'Eternal Sunshine of the Spotless Mind',
+    name: 'Beach Memory',
     description: 'Icy beach blue, warm yellow memory, and faded pink',
     targetHues: [20, 45, 200, 220, 330, 355],
     jitterMax: 3,
   },
   {
-    name: 'The Lighthouse',
-    description: 'Storm-lashed blues, lantern ochre, and briny moonlight',
-    targetHues: [20, 40, 180, 205, 230, 260],
-    jitterMax: 3,
-  },
-  {
-    name: 'Joker (2019)',
-    description: 'Teal-grey Gotham, warm red smile, and ochre stairwell',
+    name: 'Stairwell',
+    description: 'Teal-grey city, warm red smile, and ochre stairwell',
     targetHues: [15, 35, 60, 175, 200, 355],
     jitterMax: 3,
   },
   {
-    name: 'Barbie (2023)',
+    name: 'Pink Plastic',
     description: 'Hot pink, soft bubblegum, magenta, and an aqua accent',
     targetHues: [0, 20, 180, 290, 320, 340],
     jitterMax: 3,
@@ -428,11 +389,11 @@ const CINEMA_PALETTES = [
 ];
 
 // Featured one-off overrides for specific dates. These win over the
-// monthly rotation and can use EITHER the new cinema-palette format
-// (targetHues + jitterMax) OR the legacy arc-based format (hueRanges).
+// monthly rotation. Use the cinema-palette format: { name, description,
+// targetHues: [6 anchors], jitterMax }.
 const FEATURED_OVERRIDES = {
-  // No active overrides — 2026-04-22 now falls through to the monthly
-  // shuffled rotation (picks Pulp Fiction per the current shuffle).
+  // No active overrides — all dates fall through to the monthly
+  // shuffled rotation over CINEMA_PALETTES.
 };
 
 // ────────────────────────────────────────────────────────────────────
@@ -537,67 +498,13 @@ function themeForDate(dateStr) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Legacy arc-based helpers (kept for FEATURED_OVERRIDES that use
-// hueRanges rather than targetHues). Not used by the cinema palettes.
-// ────────────────────────────────────────────────────────────────────
-function arcLength(range) {
-  const [a, b] = range;
-  const span = ((b - a) % 360 + 360) % 360;
-  return span === 0 ? 360 : span;
-}
-function hueAtArcFraction(range, u) {
-  const [a] = range;
-  const len = arcLength(range);
-  return ((a + u * len) % 360 + 360) % 360;
-}
-function hueFromRanges(ranges, u) {
-  const lens = ranges.map(arcLength);
-  const total = lens.reduce((s, x) => s + x, 0);
-  let target = u * total;
-  for (let i = 0; i < ranges.length; i++) {
-    if (target < lens[i]) return hueAtArcFraction(ranges[i], target / lens[i]);
-    target -= lens[i];
-  }
-  return hueAtArcFraction(ranges[ranges.length - 1], 0.999);
-}
-function widenRangesForSeparation(ranges, minTotalArc) {
-  const total = ranges.reduce((s, r) => s + arcLength(r), 0);
-  if (total >= minTotalArc) return ranges;
-  const scale = minTotalArc / total;
-  return ranges.map(([a, b]) => {
-    const len = arcLength([a, b]);
-    const center = ((a + len / 2) % 360 + 360) % 360;
-    const newLen = len * scale;
-    const newA = ((center - newLen / 2) % 360 + 360) % 360;
-    const newB = ((center + newLen / 2) % 360 + 360) % 360;
-    return [newA, newB];
-  });
-}
-function uniformPuzzleHues(stateIn) {
-  let state = stateIn;
-  let u;
-  [state, u] = nextUniform(state); const alpha = u * 60;
-  const hues = [];
-  for (let i = 0; i < 6; i++) {
-    [state, u] = nextUniform(state);
-    const j = u * 30 - 15;
-    let h = alpha + 60 * i + j;
-    h = ((h % 360) + 360) % 360;
-    hues.push(h);
-  }
-  return { state, hues };
-}
-
-// ────────────────────────────────────────────────────────────────────
 // puzzleForDate(date) → {S, B, hues: [6], theme}
 //
-// Modes:
-//   • targetHues mode (cinema palettes + Friends override): jitter each
-//     anchor by ±jitterMax°, round, return. No stratification, no
-//     widening. If jittered hues dip below MIN_GAP=12° (rare), fall
-//     back to the exact un-jittered anchors.
-//   • hueRanges mode (legacy): preserved arc-based stratified sampling
-//     with widening + reroll fallback.
+// Every palette defines 6 target anchors. We jitter each anchor by
+// ±jitterMax°, round, and return. No stratification, no widening —
+// the targets ARE the targets. If the jittered hues dip below
+// MIN_GAP=12° (rare, only on tightly-spaced palettes), fall back to
+// the exact un-jittered anchors for that day.
 // ────────────────────────────────────────────────────────────────────
 function puzzleForDate(dateStr) {
   const theme = themeForDate(dateStr);
@@ -606,66 +513,22 @@ function puzzleForDate(dateStr) {
   [state, u] = nextUniform(state); const S = 0.60 + u * 0.15;   // spec §2.5
   [state, u] = nextUniform(state); const B = 0.48 + u * 0.10;   // spec §2.5
 
-  // ── New format: explicit six anchors + per-day jitter ──
-  if (Array.isArray(theme.targetHues) && theme.targetHues.length === 6) {
-    const jitterMax = typeof theme.jitterMax === 'number' ? theme.jitterMax : 3;
-    const jittered = theme.targetHues.map((anchor) => {
-      let uj;
-      [state, uj] = nextUniform(state);
-      const j = (uj * 2 - 1) * jitterMax; // ±jitterMax°
-      let h = Math.round(((anchor + j) % 360 + 360) % 360);
-      if (h === 360) h = 0;
-      return h;
-    });
-    // Safety: jitter shouldn't push neighbours too close, but if anchors
-    // are tightly spaced (e.g. monochromatic palettes) a worst-case draw
-    // could nip below 12°. Fall back to un-jittered anchors in that case.
-    const hues = minAdjacentGap(jittered) >= 12
-      ? jittered
-      : theme.targetHues.map(h => {
-          let v = Math.round(((h % 360) + 360) % 360);
-          if (v === 360) v = 0;
-          return v;
-        });
-    return { S, B, hues, theme };
-  }
-
-  // ── Legacy format: arc-based stratified sampling ──
-  const MIN_GAP = 12;
-  const JITTER  = 7;
-  const MIN_TOTAL_ARC = 6 * (MIN_GAP + 2 * JITTER);
-  const effectiveRanges = widenRangesForSeparation(theme.hueRanges, MIN_TOTAL_ARC);
-
-  let hues = null;
-  for (let attempt = 0; attempt < 20; attempt++) {
-    const candidate = [];
-    for (let i = 0; i < 6; i++) {
-      let uh;
-      [state, uh] = nextUniform(state);
-      const strat = (i + uh) / 6;
-      let h = hueFromRanges(effectiveRanges, strat);
-
-      let uj;
-      [state, uj] = nextUniform(state);
-      const jitter = (uj * 2 - 1) * JITTER;
-      h = ((h + jitter) % 360 + 360) % 360;
-      h = Math.round(h);
-      if (h === 360) h = 0;
-      candidate.push(h);
-    }
-    if (minAdjacentGap(candidate) >= MIN_GAP) { hues = candidate; break; }
-  }
-
-  if (!hues) {
-    const r = uniformPuzzleHues(state);
-    state = r.state;
-    hues = r.hues.map(h => {
-      let v = Math.round(h);
-      if (v === 360) v = 0;
-      return v;
-    });
-  }
-
+  const jitterMax = typeof theme.jitterMax === 'number' ? theme.jitterMax : 3;
+  const jittered = theme.targetHues.map((anchor) => {
+    let uj;
+    [state, uj] = nextUniform(state);
+    const j = (uj * 2 - 1) * jitterMax; // ±jitterMax°
+    let h = Math.round(((anchor + j) % 360 + 360) % 360);
+    if (h === 360) h = 0;
+    return h;
+  });
+  const hues = minAdjacentGap(jittered) >= 12
+    ? jittered
+    : theme.targetHues.map(h => {
+        let v = Math.round(((h % 360) + 360) % 360);
+        if (v === 360) v = 0;
+        return v;
+      });
   return { S, B, hues, theme };
 }
 
@@ -1054,6 +917,17 @@ function HowToPlay({ open, onToggle, onReset, showDeg, onToggleShowDeg }) {
           <p style={{ margin: '10px 0 0', color: HD_MUTED, fontSize: 10, lineHeight: 1.45 }}>
             Hints are within <b>8°</b> on the color wheel. Get all six green in 6 tries to win.
           </p>
+          <div style={{
+            margin: '10px 0 0', color: HD_MUTED, fontSize: 10, lineHeight: 1.5,
+          }}>
+            <div style={{
+              color: HD_MUTED, fontSize: 9.5, letterSpacing: 2, textTransform: 'uppercase',
+              marginBottom: 4,
+            }}>Three hint systems</div>
+            <div><span style={{ color: HD_TEXT, fontWeight: 600 }}>Auto hint word</span> — appears after your 3rd guess. Universal, no penalty.</div>
+            <div><span style={{ color: HD_TEXT, fontWeight: 600 }}>Show distances</span> — optional toggle, <span style={{ color: '#f59e42' }}>−50% score penalty</span>.</div>
+            <div><span style={{ color: HD_TEXT, fontWeight: 600 }}>Grey-zone dimming</span> — automatic wheel dimming for eliminated hues. Visual only, no penalty.</div>
+          </div>
           <p style={{ margin: '8px 0 0', color: HD_MUTED, fontSize: 10, lineHeight: 1.45, fontStyle: 'italic' }}>
             Today's puzzle has a <b>theme</b> — revealed at the end.
           </p>
@@ -1171,6 +1045,21 @@ function ScoringPanel({ open, onToggle }) {
           </ul>
 
           <div style={{ color: HD_MUTED, fontSize: 9.5, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>
+            Hint systems
+          </div>
+          <ul style={{ margin: '0 0 12px', paddingLeft: 18 }}>
+            <li style={{ marginBottom: 4 }}>
+              <span style={{ color: HD_TEXT, fontWeight: 600 }}>Auto hint word</span> — appears after your 3rd guess. Universal, no penalty.
+            </li>
+            <li style={{ marginBottom: 4 }}>
+              <span style={{ color: HD_TEXT, fontWeight: 600 }}>Show distances</span> — optional toggle. <span style={{ color: '#f59e42' }}>−50% score penalty.</span>
+            </li>
+            <li>
+              <span style={{ color: HD_TEXT, fontWeight: 600 }}>Grey-zone dimming</span> — automatic. Visual only, no penalty.
+            </li>
+          </ul>
+
+          <div style={{ color: HD_MUTED, fontSize: 9.5, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>
             Grade
           </div>
           <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse', marginBottom: 10, fontVariantNumeric: 'tabular-nums' }}>
@@ -1193,8 +1082,8 @@ function ScoringPanel({ open, onToggle }) {
   );
 }
 
-// Synthesized color-palette poster — fallback when TMDB URL 404s.
-// Renders 6 horizontal color bars in the film's own palette with the title.
+// Synthesized color-palette poster — the canonical reveal card.
+// Renders 6 horizontal color bars in the palette with the theme name.
 function PalettePoster({ theme, puzzle }) {
   return (
     <div style={{
@@ -1220,9 +1109,6 @@ function PalettePoster({ theme, puzzle }) {
 }
 
 function MoviePosterReveal({ theme, puzzle }) {
-  const path = TMDB_POSTER_PATHS[theme.name];
-  const tmdbUrl = path ? `https://image.tmdb.org/t/p/w342${path}` : null;
-  const [errored, setErrored] = React.useState(!tmdbUrl);
   const searchUrl = 'https://www.google.com/search?tbm=isch&q=' +
     encodeURIComponent(theme.name + ' movie poster scene');
   return (
@@ -1233,21 +1119,8 @@ function MoviePosterReveal({ theme, puzzle }) {
       <div style={{
         color: HD_MUTED, fontSize: 9.5, letterSpacing: 2.5,
         textTransform: 'uppercase', fontWeight: 600,
-      }}>The film</div>
-      {errored ? (
-        <PalettePoster theme={theme} puzzle={puzzle}/>
-      ) : (
-        <img
-          src={tmdbUrl}
-          alt={theme.name + ' poster'}
-          onError={() => setErrored(true)}
-          style={{
-            width: 140, height: 'auto', maxHeight: 220,
-            objectFit: 'cover', borderRadius: 10,
-            boxShadow: '0 8px 18px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06)',
-          }}
-        />
-      )}
+      }}>The palette</div>
+      <PalettePoster theme={theme} puzzle={puzzle}/>
       <a
         href={searchUrl}
         target="_blank"
@@ -1266,7 +1139,7 @@ function MoviePosterReveal({ theme, puzzle }) {
         fontStyle: 'italic', maxWidth: 260, textAlign: 'center',
         lineHeight: 1.4, marginTop: -2,
       }}>
-        {errored ? 'Poster unavailable — showing palette card instead' : 'Poster via TMDB · prototype only'}
+        Palette card
       </div>
     </div>
   );
@@ -2423,8 +2296,7 @@ function App() {
                 </div>
               )}
 
-              {/* Movie poster reveal — TMDB image with palette-poster fallback
-                  on 404, plus link-out to Google Images for posters & scenes. */}
+              {/* Palette reveal card + Google Images link-out for posters & scenes. */}
               <MoviePosterReveal theme={puzzle.theme} puzzle={puzzle} />
 
               <div style={{ marginTop: (!practiceMode && dailyScoreInfo && !inPreview) ? 2 : (showDeg ? 18 : 6), fontSize: 11, color: HD_TEXT, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 600 }}>
