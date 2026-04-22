@@ -99,7 +99,7 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // Bump this whenever the generator/theme algorithm changes in a way that
 // makes prior saves stale. On load, if saved.genVersion !== GEN_VERSION,
 // the saved state is discarded and a fresh puzzle is generated.
-const GEN_VERSION          = 'v8-forbidden-lock-2026-04-22';
+const GEN_VERSION          = 'v9-in-play-hint-toggle-2026-04-22';
 const SCORE_HISTORY_KEY    = 'hueday-score-history';
 
 // ────────────────────────────────────────────────────────────────────
@@ -878,7 +878,7 @@ function LegendRow({ color, label, text, arrow }) {
     </div>
   );
 }
-function HowToPlay({ open, onToggle, onReset }) {
+function HowToPlay({ open, onToggle, onReset, showDeg, onToggleShowDeg }) {
   return (
     <div style={{
       margin: '0 18px 10px',
@@ -924,8 +924,28 @@ function HowToPlay({ open, onToggle, onReset }) {
           <div style={{
             marginTop: 12, paddingTop: 10,
             borderTop: '1px solid ' + HD_BORDER,
-            display: 'flex', justifyContent: 'center',
+            display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center',
           }}>
+            {onToggleShowDeg && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onToggleShowDeg(); }}
+                style={{
+                  background: showDeg ? 'rgba(245, 158, 66, 0.12)' : 'transparent',
+                  border: '1px solid ' + (showDeg ? '#f59e42' : HD_BORDER),
+                  color: showDeg ? '#f59e42' : HD_MUTED,
+                  fontSize: 10, fontWeight: 600, letterSpacing: 1.2,
+                  textTransform: 'uppercase',
+                  padding: '7px 14px', borderRadius: 8,
+                  cursor: 'pointer', fontFamily: HD_FONT,
+                  lineHeight: 1.3, textAlign: 'center',
+                }}
+              >
+                {showDeg ? 'Hide distances · hints on' : 'Show distances on guesses'}
+                <div style={{ fontSize: 9, letterSpacing: 1, marginTop: 2, opacity: 0.8, fontWeight: 500 }}>
+                  −50% score penalty
+                </div>
+              </button>
+            )}
             <button
               onClick={(e) => { e.stopPropagation(); onReset && onReset(); }}
               style={{
@@ -1954,14 +1974,20 @@ function App() {
         />
       )}
 
-      <HowToPlay open={howToOpen} onToggle={toggleHowTo} onReset={() => {
-        if (!window.confirm("Reset today's puzzle? This wipes your attempts for today — the puzzle stays the same.")) return;
-        try {
-          localStorage.removeItem(STORAGE_KEY);
-          localStorage.removeItem(PRACTICE_BEST_KEY);
-        } catch (_) {}
-        window.location.reload();
-      }} />
+      <HowToPlay
+        open={howToOpen}
+        onToggle={toggleHowTo}
+        showDeg={showDeg}
+        onToggleShowDeg={onToggleShowDeg}
+        onReset={() => {
+          if (!window.confirm("Reset today's puzzle? This wipes your attempts for today — the puzzle stays the same.")) return;
+          try {
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(PRACTICE_BEST_KEY);
+          } catch (_) {}
+          window.location.reload();
+        }}
+      />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '4px 18px 0', minHeight: 0 }}>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 14 }}>
