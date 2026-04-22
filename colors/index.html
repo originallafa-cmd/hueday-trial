@@ -97,7 +97,7 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // Bump this whenever the generator/theme algorithm changes in a way that
 // makes prior saves stale. On load, if saved.genVersion !== GEN_VERSION,
 // the saved state is discarded and a fresh puzzle is generated.
-const GEN_VERSION          = 'v2-rounded-friends-override-2026-04-22';
+const GEN_VERSION          = 'v3-target-row-shows-hue-values';
 
 // ────────────────────────────────────────────────────────────────────
 // Daily themes (Feature 1)
@@ -694,12 +694,6 @@ function TargetRow({ puzzle, guesses, matchedDist, showDeg, fading }) {
       }}>Target</div>
       <div style={{ display: 'flex', gap: 8 }}>
         {puzzle.hues.map((h, i) => {
-          // Prefer the Wordle-matched distance (distance from the guess
-          // slot that claimed this target). Fall back to null for
-          // unclaimed targets — display a dash so the column alignment
-          // stays intact when showDeg is on.
-          const dist = matchedDist ? matchedDist[i]
-                       : (guesses ? angularDistance(guesses[i], h) : null);
           return (
             <div key={i} style={{ position: 'relative' }}>
               <div style={{
@@ -708,11 +702,13 @@ function TargetRow({ puzzle, guesses, matchedDist, showDeg, fading }) {
                 border: '2px solid rgba(255,255,255,0.18)',
               }}/>
               {showDeg && (
+                // Show the target's own hue value (always useful reveal),
+                // not the distance-from-guess (which is 0 on a perfect win).
                 <div style={{
                   position: 'absolute', bottom: -17, left: 0, right: 0, textAlign: 'center',
-                  fontSize: 9.5, color: HD_MUTED, letterSpacing: 0.3,
-                  fontVariantNumeric: 'tabular-nums',
-                }}>{dist != null ? `${Math.round(dist)}°` : '—'}</div>
+                  fontSize: 10, color: HD_TEXT, letterSpacing: 0.3,
+                  fontVariantNumeric: 'tabular-nums', fontWeight: 600,
+                }}>{Math.round(h)}°</div>
               )}
             </div>
           );
