@@ -99,7 +99,8 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // Bump this whenever the generator/theme algorithm changes in a way that
 // makes prior saves stale. On load, if saved.genVersion !== GEN_VERSION,
 // the saved state is discarded and a fresh puzzle is generated.
-const GEN_VERSION          = 'v4-cinema-palettes-monthly-shuffle-2026-04-22';
+const GEN_VERSION          = 'v6-category-hint-2026-04-22';
+const SCORE_HISTORY_KEY    = 'hueday-score-history';
 
 // ────────────────────────────────────────────────────────────────────
 // Cinema palettes (v4)
@@ -308,12 +309,8 @@ const CINEMA_PALETTES = [
 // monthly rotation and can use EITHER the new cinema-palette format
 // (targetHues + jitterMax) OR the legacy arc-based format (hueRanges).
 const FEATURED_OVERRIDES = {
-  '2026-04-22': {
-    name: 'Friends',
-    description: 'Central Perk orange, Monica purple, 90s teal & more',
-    targetHues: [347, 26, 69, 134, 185, 256],
-    jitterMax: 3,
-  },
+  // No active overrides — 2026-04-22 now falls through to the monthly
+  // shuffled rotation (picks Pulp Fiction per the current shuffle).
 };
 
 // ────────────────────────────────────────────────────────────────────
@@ -564,8 +561,11 @@ function angularDistance(g, t) {
 // - GREY   : no target available within 8° (not in today's puzzle)
 // Each target can only be "claimed" by one slot. If you guess two reds
 // but the puzzle has one red, only one slot earns yellow. Wordle rules.
-function feedbackForRow(guesses, targets) {
+function feedbackForRow(guesses, targets, strictMode = false) {
   const EXACT = 8;
+  // In strict mode, a GREEN requires an exact integer match (d === 0).
+  // Yellow cross-slot threshold stays at 8° in both modes.
+  const GREEN_THRESHOLD = strictMode ? 0 : EXACT;
   const feedback = new Array(6).fill(null);
   const dist = new Array(6).fill(null);
   // matchedDist[t] = angular distance from target t to the guess slot
@@ -577,7 +577,7 @@ function feedbackForRow(guesses, targets) {
   for (let i = 0; i < 6; i++) {
     const d = angularDistance(guesses[i], targets[i]);
     dist[i] = d;
-    if (d <= EXACT) {
+    if (d <= GREEN_THRESHOLD) {
       feedback[i] = 'green';
       claimed[i] = true;
       matchedDist[i] = d;
@@ -659,9 +659,52 @@ function savePracticeBest(dateStr, attempts) {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// Scoring (v5)
+//
+// Score is based on attempts (fewer = better), halved if hints were
+// used, with a +25 "EXACT" bonus when every slot landed on the exact
+// integer target hue with no hints.
+// ────────────────────────────────────────────────────────────────────
+function computeScore(attempts, solved, hintsUsed, exactAllIntegerMatch) {
+  let base = solved ? Math.max(0, 100 - (attempts - 1) * 15) : 0;
+  // attempts=1 → 100, 2→85, 3→70, 4→55, 5→40, 6→25, fail→0
+  if (hintsUsed) base = Math.floor(base / 2);
+  const bonus = (solved && exactAllIntegerMatch && !hintsUsed) ? 25 : 0;
+  return Math.max(0, base + bonus); // 0..125
+}
+
+function scoreGrade(score) {
+  if (score >= 100) return { stars: 5, label: 'S' };
+  if (score >=  80) return { stars: 4, label: 'A' };
+  if (score >=  60) return { stars: 3, label: 'B' };
+  if (score >=  40) return { stars: 2, label: 'C' };
+  if (score >=  20) return { stars: 1, label: 'D' };
+  return { stars: 0, label: 'F' };
+}
+
+function loadScoreHistory() {
+  try {
+    const raw = localStorage.getItem(SCORE_HISTORY_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) || {};
+  } catch (_) { return {}; }
+}
+function saveScoreForDate(dateStr, entry) {
+  try {
+    const history = loadScoreHistory();
+    const prev = history[dateStr];
+    // Only overwrite if the new score is strictly better.
+    if (prev && typeof prev.score === 'number' && prev.score >= entry.score) return prev;
+    history[dateStr] = entry;
+    localStorage.setItem(SCORE_HISTORY_KEY, JSON.stringify(history));
+    return entry;
+  } catch (_) { return null; }
+}
+
+// ────────────────────────────────────────────────────────────────────
 // Visual primitives
 // ────────────────────────────────────────────────────────────────────
-function TitleBar({ dateStr, practiceMode }) {
+function TitleBar({ dateStr, practiceMode, strictMode, category }) {
   const display = dateStr ? new Date(dateStr + 'T12:00:00').toLocaleDateString(undefined, {
     weekday: 'long', month: 'long', day: 'numeric',
   }) : '';
@@ -674,17 +717,79 @@ function TitleBar({ dateStr, practiceMode }) {
       <div style={{
         fontSize: 11, color: HD_MUTED, marginTop: 3, letterSpacing: 0.2,
       }}>{display}</div>
-      {practiceMode && (
-        <div className="practice-pill" style={{
-          position: 'absolute', top: 14, right: 14,
-          background: 'rgba(250, 204, 21, 0.12)',
-          color: HD_YELLOW,
-          border: `1px solid ${HD_YELLOW}`,
-          padding: '3px 8px', borderRadius: 999,
-          fontSize: 9, letterSpacing: 1.6, fontWeight: 700,
-          textTransform: 'uppercase',
-        }}>Practice</div>
+      {category && (
+        <div style={{
+          fontSize: 9.5, marginTop: 4,
+          letterSpacing: 2.5, textTransform: 'uppercase', fontWeight: 600,
+        }}>
+          <span style={{ color: HD_MUTED }}>Category · </span>
+          <span style={{ color: HD_TEXT }}>{category}</span>
+        </div>
       )}
+      {practiceMode && (
+        <div style={{
+          position: 'absolute', top: 14, right: 14,
+          display: 'flex', gap: 6,
+        }}>
+          <div className="practice-pill" style={{
+            background: 'rgba(250, 204, 21, 0.12)',
+            color: HD_YELLOW,
+            border: `1px solid ${HD_YELLOW}`,
+            padding: '3px 8px', borderRadius: 999,
+            fontSize: 9, letterSpacing: 1.6, fontWeight: 700,
+            textTransform: 'uppercase',
+          }}>Practice</div>
+          {strictMode && (
+            <div style={{
+              background: 'rgba(239, 68, 68, 0.14)',
+              color: '#f87171',
+              border: '1px solid #f87171',
+              padding: '3px 8px', borderRadius: 999,
+              fontSize: 9, letterSpacing: 1.6, fontWeight: 700,
+              textTransform: 'uppercase',
+            }}>Strict</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PreviewBanner({ virtualDateStr, offset, onBack }) {
+  const display = virtualDateStr ? new Date(virtualDateStr + 'T12:00:00').toLocaleDateString(undefined, {
+    weekday: 'short', month: 'short', day: 'numeric',
+  }) : '';
+  return (
+    <div style={{
+      background: 'rgba(245, 158, 11, 0.12)',
+      borderBottom: '1px solid rgba(245, 158, 11, 0.45)',
+      color: '#fcd34d',
+      padding: '8px 14px',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      gap: 10, fontSize: 11, letterSpacing: 0.4,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+        <span style={{ fontSize: 13 }}>⚠</span>
+        <span style={{
+          fontWeight: 700, letterSpacing: 1.4, textTransform: 'uppercase', fontSize: 10,
+        }}>Preview</span>
+        <span style={{ color: HD_TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {display} <span style={{ color: HD_MUTED }}>(+{offset} day{offset === 1 ? '' : 's'})</span>
+        </span>
+      </div>
+      <button
+        onClick={onBack}
+        style={{
+          background: 'transparent',
+          border: '1px solid rgba(245, 158, 11, 0.65)',
+          color: '#fcd34d',
+          fontSize: 10, fontWeight: 700, letterSpacing: 1.2,
+          textTransform: 'uppercase',
+          padding: '4px 10px', borderRadius: 8,
+          cursor: 'pointer', fontFamily: HD_FONT,
+          whiteSpace: 'nowrap',
+        }}
+      >Back to Today</button>
     </div>
   );
 }
@@ -835,6 +940,68 @@ function HowToPlay({ open, onToggle, onReset }) {
             >Reset today's progress</button>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function ScoreCard({ score, attempts, solved, hintsUsed, exactBonus }) {
+  const grade = scoreGrade(score);
+  const starsFull  = '★'.repeat(grade.stars);
+  const starsEmpty = '☆'.repeat(5 - grade.stars);
+  const hintLine = hintsUsed
+    ? <span style={{ color: '#f59e42' }}>Hints used (score halved)</span>
+    : <span style={{ color: HD_MUTED }}>No hints</span>;
+  const attemptsLine = solved ? `Solved in ${attempts}` : 'Out of guesses';
+  return (
+    <div style={{
+      background: HD_SURFACE,
+      border: `1px solid ${HD_BORDER}`,
+      borderRadius: 12,
+      padding: '10px 14px 12px',
+      minWidth: 230,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+    }}>
+      <div style={{
+        fontSize: 9.5, color: HD_MUTED, letterSpacing: 2.5,
+        textTransform: 'uppercase', fontWeight: 700,
+      }}>Score</div>
+      <div style={{
+        display: 'flex', alignItems: 'baseline', gap: 10,
+        fontVariantNumeric: 'tabular-nums',
+      }}>
+        <div style={{
+          fontSize: 16, letterSpacing: 1,
+          color: HD_YELLOW,
+        }}>
+          <span>{starsFull}</span>
+          <span style={{ color: HD_DASHED }}>{starsEmpty}</span>
+        </div>
+        <div style={{
+          fontSize: 22, fontWeight: 700, color: HD_TEXT, letterSpacing: 0.4,
+        }}>{score}</div>
+        <div style={{ fontSize: 11, color: HD_MUTED }}>/ 125</div>
+        <div style={{
+          fontSize: 10, fontWeight: 700, letterSpacing: 1.4,
+          color: HD_TEXT,
+          background: '#0e0e0e',
+          border: `1px solid ${HD_BORDER}`,
+          borderRadius: 6, padding: '2px 6px', marginLeft: 2,
+        }}>{grade.label}</div>
+      </div>
+      <div style={{ fontSize: 11, color: HD_TEXT, letterSpacing: 0.3 }}>
+        {attemptsLine} <span style={{ color: HD_MUTED }}>•</span> {hintLine}
+      </div>
+      {exactBonus && (
+        <div style={{
+          marginTop: 4,
+          fontSize: 10, fontWeight: 800, letterSpacing: 1.5,
+          textTransform: 'uppercase',
+          color: '#fde68a',
+          background: 'rgba(250, 204, 21, 0.12)',
+          border: '1px solid rgba(250, 204, 21, 0.5)',
+          padding: '3px 8px', borderRadius: 999,
+        }}>+25 EXACT BONUS</div>
       )}
     </div>
   );
@@ -1138,6 +1305,13 @@ function makeEmptyRows() {
   }));
 }
 
+function addDaysToDateStr(dateStr, days) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const base = new Date(y, m - 1, d, 12, 0, 0);
+  base.setDate(base.getDate() + days);
+  return localDateString(base);
+}
+
 function App() {
   const [dateStr, setDateStr]       = React.useState(localDateString());
   const [puzzle, setPuzzle]         = React.useState(() => puzzleForDate(localDateString()));
@@ -1147,6 +1321,7 @@ function App() {
   const [state, setState]           = React.useState('in-progress'); // 'in-progress' | 'solved' | 'failed'
   const [pickerHue, setPickerHue]   = React.useState(180);
   const [showDeg, setShowDeg]       = React.useState(false);
+  const [hintsUsed, setHintsUsed]   = React.useState(false);
   const [fading, setFading]         = React.useState(false);
   const [toast, setToast]           = React.useState(null);
   const [howToOpen, setHowToOpen]   = React.useState(() => {
@@ -1154,8 +1329,12 @@ function App() {
     catch (_) { return true; }
   });
 
+  // ── Virtual-date preview (session only, not persisted) ──
+  const [virtualDateOffset, setVirtualDateOffset] = React.useState(0);
+
   // ── Practice-mode state (not persisted) ──
   const [practiceMode, setPracticeMode] = React.useState(false);
+  const [strictMode, setStrictMode]     = React.useState(false);
   const [practiceRows, setPracticeRows] = React.useState(makeEmptyRows);
   const [practiceCurrentRow, setPracticeCurrentRow] = React.useState(0);
   const [practiceActiveSlot, setPracticeActiveSlot] = React.useState(0);
@@ -1181,6 +1360,7 @@ function App() {
       setCurrentRow(saved.currentRow ?? 0);
       setActiveSlot(saved.activeSlot ?? 0);
       setState(saved.state ?? 'in-progress');
+      setHintsUsed(!!saved.hintsUsed);
     } else {
       // Either brand-new player, new day, OR puzzle algorithm was updated
       // since last save. In the latter case prior rows' feedback colors
@@ -1195,17 +1375,23 @@ function App() {
       setCurrentRow(0);
       setActiveSlot(0);
       setState('in-progress');
+      setHintsUsed(false);
     }
   }, []);
 
-  // ── Persist on change (practice state excluded by design) ──
+  // ── Persist on change (practice / virtual-preview state excluded by design) ──
   React.useEffect(() => {
-    saveState({ dateStr, rows, currentRow, activeSlot, state, genVersion: GEN_VERSION });
-  }, [dateStr, rows, currentRow, activeSlot, state]);
+    // Don't persist while in virtual-date preview — that session is ephemeral.
+    if (virtualDateOffset !== 0) return;
+    saveState({ dateStr, rows, currentRow, activeSlot, state, hintsUsed, genVersion: GEN_VERSION });
+  }, [dateStr, rows, currentRow, activeSlot, state, hintsUsed, virtualDateOffset]);
 
   // ── Midnight rollover via visibility-change (spec §8.1) ──
   React.useEffect(() => {
     const check = () => {
+      // While in virtual-date preview, suppress real-day rollover — the
+      // user is intentionally viewing a different date.
+      if (virtualDateOffset !== 0) return;
       const today = localDateString();
       if (today !== dateStr) {
         setDateStr(today);
@@ -1216,9 +1402,11 @@ function App() {
         setState('in-progress');
         setPickerHue(180);
         setShowDeg(false);
+        setHintsUsed(false);
         setFading(false);
         // Drop any stale practice session at rollover.
         setPracticeMode(false);
+        setStrictMode(false);
         setPracticeRows(makeEmptyRows());
         setPracticeCurrentRow(0);
         setPracticeActiveSlot(0);
@@ -1237,7 +1425,7 @@ function App() {
       window.removeEventListener('focus', check);
       clearInterval(id);
     };
-  }, [dateStr]);
+  }, [dateStr, virtualDateOffset]);
 
   // ── Picker hue tracks the active slot's hue (or default if empty) ──
   // In practice mode, we follow the practice grid instead.
@@ -1367,9 +1555,10 @@ function App() {
   const canSubmit = activeState === 'in-progress' && currentRowFilled;
 
   // Helper: score a row and return the updated row + allGreen flag.
-  const scoreRow = (row) => {
+  // In strict practice, a green requires d === 0 (exact integer match).
+  const scoreRow = (row, strict = false) => {
     const guesses = row.slots.map(s => s.hue);
-    const { feedback: rowFb, dist: rowDist } = feedbackForRow(guesses, puzzle.hues);
+    const { feedback: rowFb, dist: rowDist } = feedbackForRow(guesses, puzzle.hues, strict);
     const scored = row.slots.map((s, j) => ({
       ...s, feedback: rowFb[j], distance: rowDist[j],
     }));
@@ -1377,20 +1566,37 @@ function App() {
     return { row: { ...row, submitted: true, slots: scored }, allGreen };
   };
 
+  // Wrapped showDeg toggle — flips hintsUsed to true the first time the
+  // player reveals degrees while the active game is still in progress.
+  const onToggleShowDeg = () => {
+    setShowDeg(prev => {
+      const next = !prev;
+      if (next && activeState === 'in-progress') {
+        // Daily hintsUsed is only meaningful for the daily track.
+        // Practice plays don't contribute to score, so no persistence needed.
+        if (!practiceMode) setHintsUsed(true);
+      }
+      return next;
+    });
+  };
+
   const onSubmit = () => {
     if (!canSubmit) return;
 
     if (practiceMode) {
       haptic(20);
-      const { row: scored, allGreen } = scoreRow(practiceRows[practiceCurrentRow]);
+      const { row: scored, allGreen } = scoreRow(practiceRows[practiceCurrentRow], strictMode);
       const nextRows = practiceRows.map((r, i) => i === practiceCurrentRow ? scored : r);
       setPracticeRows(nextRows);
       if (allGreen) {
         setPracticeState('solved');
         chime();
         const attempts = practiceCurrentRow + 1;
-        const saved = savePracticeBest(dateStr, attempts);
-        if (saved) setPracticeBest(saved);
+        // Strict practice doesn't count toward best-attempts (different rules).
+        if (!strictMode) {
+          const saved = savePracticeBest(dateStr, attempts);
+          if (saved) setPracticeBest(saved);
+        }
       } else if (practiceCurrentRow >= 5) {
         // Unlimited tries — auto-reset after a brief pause.
         setPracticeState('failed');
@@ -1409,19 +1615,23 @@ function App() {
       return;
     }
 
-    // Midnight-on-submit re-check (spec §8.2) — daily path only
-    const today = localDateString();
-    if (today !== dateStr) {
-      setDateStr(today);
-      setPuzzle(puzzleForDate(today));
-      setRows(makeEmptyRows());
-      setCurrentRow(0);
-      setActiveSlot(0);
-      setState('in-progress');
-      setPickerHue(180);
-      setToast('Midnight passed — new puzzle.');
-      setTimeout(() => setToast(null), 2200);
-      return;
+    // Midnight-on-submit re-check (spec §8.2) — daily path only.
+    // Skip when viewing a virtual-date preview; the "today" check is moot.
+    if (virtualDateOffset === 0) {
+      const today = localDateString();
+      if (today !== dateStr) {
+        setDateStr(today);
+        setPuzzle(puzzleForDate(today));
+        setRows(makeEmptyRows());
+        setCurrentRow(0);
+        setActiveSlot(0);
+        setState('in-progress');
+        setPickerHue(180);
+        setHintsUsed(false);
+        setToast('Midnight passed — new puzzle.');
+        setTimeout(() => setToast(null), 2200);
+        return;
+      }
     }
 
     haptic(20);
@@ -1431,11 +1641,27 @@ function App() {
     if (allGreen) {
       setState('solved');
       chime();
+      // Persist score for real-today plays only — previews are ephemeral.
+      if (virtualDateOffset === 0) {
+        const attempts = currentRow + 1;
+        const exactAllInteger = scored.slots.every(s => s.distance === 0);
+        const score = computeScore(attempts, true, hintsUsed, exactAllInteger);
+        saveScoreForDate(dateStr, {
+          score, attempts, hintsUsed, exactBonus: exactAllInteger && !hintsUsed,
+          themeName: puzzle.theme ? puzzle.theme.name : null,
+        });
+      }
     } else if (currentRow >= 5) {
       setState('failed');
       setFading(true);
       // 1-second fade-in on fail (spec §7)
       setTimeout(() => setFading(false), 50);
+      if (virtualDateOffset === 0) {
+        saveScoreForDate(dateStr, {
+          score: 0, attempts: 6, hintsUsed, exactBonus: false,
+          themeName: puzzle.theme ? puzzle.theme.name : null,
+        });
+      }
     } else {
       setCurrentRow(currentRow + 1);
       setActiveSlot(0);
@@ -1479,10 +1705,25 @@ function App() {
     setPracticeActiveSlot(0);
     setPracticeState('in-progress');
     setPracticeMode(true);
+    setStrictMode(false);
     setPickerHue(180);
+  };
+  const enterStrictPractice = () => {
+    setPracticeRows(makeEmptyRows());
+    setPracticeCurrentRow(0);
+    setPracticeActiveSlot(0);
+    setPracticeState('in-progress');
+    setPracticeMode(true);
+    setStrictMode(true);
+    setPickerHue(180);
+    if (hintsUsed && virtualDateOffset === 0) {
+      setToast("Strict practice (won't count — hints used).");
+      setTimeout(() => setToast(null), 2600);
+    }
   };
   const exitPractice = () => {
     setPracticeMode(false);
+    setStrictMode(false);
     setPracticeRows(makeEmptyRows());
     setPracticeCurrentRow(0);
     setPracticeActiveSlot(0);
@@ -1493,6 +1734,56 @@ function App() {
     setPracticeCurrentRow(0);
     setPracticeActiveSlot(0);
     setPracticeState('in-progress');
+  };
+
+  // ── Virtual-date preview (Feature 5) ──
+  const loadPuzzleForOffset = (offset) => {
+    const realToday = localDateString();
+    const target = offset === 0 ? realToday : addDaysToDateStr(realToday, offset);
+    setDateStr(target);
+    setPuzzle(puzzleForDate(target));
+    setPracticeMode(false);
+    setStrictMode(false);
+    setPracticeRows(makeEmptyRows());
+    setPracticeCurrentRow(0);
+    setPracticeActiveSlot(0);
+    setPracticeState('in-progress');
+    if (offset === 0) {
+      // Return to today — rehydrate persisted state for today.
+      const saved = loadState();
+      if (saved && saved.dateStr === realToday && saved.genVersion === GEN_VERSION) {
+        setRows(saved.rows || makeEmptyRows());
+        setCurrentRow(saved.currentRow ?? 0);
+        setActiveSlot(saved.activeSlot ?? 0);
+        setState(saved.state ?? 'in-progress');
+        setHintsUsed(!!saved.hintsUsed);
+      } else {
+        setRows(makeEmptyRows());
+        setCurrentRow(0);
+        setActiveSlot(0);
+        setState('in-progress');
+        setHintsUsed(false);
+      }
+    } else {
+      // Fresh ephemeral session for the preview day.
+      setRows(makeEmptyRows());
+      setCurrentRow(0);
+      setActiveSlot(0);
+      setState('in-progress');
+      setHintsUsed(false);
+    }
+    setPickerHue(180);
+    setShowDeg(false);
+    setFading(false);
+  };
+  const onNextDay = () => {
+    const next = virtualDateOffset + 1;
+    setVirtualDateOffset(next);
+    loadPuzzleForOffset(next);
+  };
+  const onBackToToday = () => {
+    setVirtualDateOffset(0);
+    loadPuzzleForOffset(0);
   };
 
   const done = activeState !== 'in-progress';
@@ -1514,6 +1805,30 @@ function App() {
 
   const practiceBestForToday = practiceBest && practiceBest.dateStr === dateStr ? practiceBest : null;
 
+  // ── Derived score for the daily track (shown on game end, not in practice) ──
+  const dailyScoreInfo = React.useMemo(() => {
+    if (practiceMode) return null;
+    if (state === 'in-progress') return null;
+    const solvedNow = state === 'solved';
+    const attempts = solvedNow ? (currentRow + 1) : 6;
+    // Exact bonus: every slot on the winning row matched integer-exact.
+    let exactAllInteger = false;
+    if (solvedNow) {
+      const winRow = rows[currentRow];
+      if (winRow && winRow.submitted) {
+        exactAllInteger = winRow.slots.every(s => s.distance === 0);
+      }
+    }
+    const score = computeScore(attempts, solvedNow, hintsUsed, exactAllInteger);
+    return {
+      score, attempts, solved: solvedNow, hintsUsed,
+      exactBonus: solvedNow && exactAllInteger && !hintsUsed,
+    };
+  }, [practiceMode, state, currentRow, rows, hintsUsed]);
+
+  const inPreview = virtualDateOffset > 0;
+  const virtualDateStr = inPreview ? dateStr : null;
+
   return (
     <div style={{
       width: 'min(420px, 100vw)',
@@ -1527,7 +1842,15 @@ function App() {
       boxSizing: 'border-box',
       position: 'relative',
     }}>
-      <TitleBar dateStr={dateStr} practiceMode={practiceMode} />
+      <TitleBar dateStr={dateStr} practiceMode={practiceMode} strictMode={strictMode} category={(puzzle && puzzle.theme && puzzle.theme.category) || 'Movies'} />
+
+      {inPreview && (
+        <PreviewBanner
+          virtualDateStr={virtualDateStr}
+          offset={virtualDateOffset}
+          onBack={onBackToToday}
+        />
+      )}
 
       <HowToPlay open={howToOpen} onToggle={toggleHowTo} onReset={() => {
         if (!window.confirm("Reset today's puzzle? This wipes your attempts for today — the puzzle stays the same.")) return;
@@ -1561,9 +1884,25 @@ function App() {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginTop: 6 }}>
               <ThemeReveal theme={puzzle.theme} />
               <TargetRow puzzle={puzzle} guesses={lastGuesses} matchedDist={lastMatchedDist} showDeg={showDeg} fading={fading && !solved} />
-              <div style={{ marginTop: showDeg ? 18 : 6, fontSize: 11, color: HD_TEXT, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 600 }}>
+
+              {/* Daily score card — shown after solve/fail on the daily track.
+                  Placed between the target row and the status line so the
+                  summary sits inside the reveal card visually. */}
+              {!practiceMode && dailyScoreInfo && !inPreview && (
+                <div style={{ marginTop: showDeg ? 14 : 6 }}>
+                  <ScoreCard
+                    score={dailyScoreInfo.score}
+                    attempts={dailyScoreInfo.attempts}
+                    solved={dailyScoreInfo.solved}
+                    hintsUsed={dailyScoreInfo.hintsUsed}
+                    exactBonus={dailyScoreInfo.exactBonus}
+                  />
+                </div>
+              )}
+
+              <div style={{ marginTop: (!practiceMode && dailyScoreInfo && !inPreview) ? 2 : (showDeg ? 18 : 6), fontSize: 11, color: HD_TEXT, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 600 }}>
                 {practiceMode
-                  ? (solved ? `Practice solved in ${practiceCurrentRow + 1}` : 'Practice round — resetting…')
+                  ? (solved ? `${strictMode ? 'Strict ' : ''}Practice solved in ${practiceCurrentRow + 1}` : 'Practice round — resetting…')
                   : (solved ? `Solved in ${currentRow + 1}` : 'Out of guesses')}
               </div>
 
@@ -1575,7 +1914,7 @@ function App() {
 
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
                 <button
-                  onClick={() => setShowDeg(v => !v)}
+                  onClick={onToggleShowDeg}
                   style={{
                     background: HD_SURFACE,
                     border: `1px solid ${HD_BORDER}`,
@@ -1593,7 +1932,11 @@ function App() {
                     <button onClick={exitPractice} style={secondaryBtnStyle}>Exit Practice</button>
                   </>
                 ) : (
-                  <button onClick={enterPractice} style={secondaryBtnStyle}>Practice This Puzzle</button>
+                  <>
+                    <button onClick={enterPractice} style={secondaryBtnStyle}>Practice This Puzzle</button>
+                    <button onClick={enterStrictPractice} style={secondaryBtnStyle}>Try for Perfect</button>
+                    <button onClick={onNextDay} style={secondaryBtnStyle}>Next Day →</button>
+                  </>
                 )}
               </div>
             </div>
