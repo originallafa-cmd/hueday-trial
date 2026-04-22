@@ -195,7 +195,7 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // discarded and a fresh puzzle is generated. v13 bump is justified:
 // every palette has been renamed and four were re-tuned, so
 // saved.themeName and prior feedback colors would mismatch.
-const GEN_VERSION          = 'v21-cmbyn-hybrid-dispute-button-2026-04-22';
+const GEN_VERSION          = 'v22-fix-drag-click-bubble-2026-04-22';
 const SCORE_HISTORY_KEY    = 'hueday-score-history';
 const DISPUTES_KEY         = 'hueday-disputes';
 
@@ -1018,7 +1018,14 @@ function Swatch({ hue, S, B, feedback, isActive, isEditable, size = 46, showDeg,
       data-drop-row={rowIdx != null ? rowIdx : undefined}
       data-drop-slot={slotIdx != null ? slotIdx : undefined}
       onPointerDown={canDragFrom ? (e) => onDragStart(e, hue, rowIdx, slotIdx) : undefined}
-      onClick={isEditable ? onClick : undefined}
+      onClick={(e) => {
+        // If this slot could be a drag source (any filled slot), swallow
+        // the click so it doesn't bubble up to the row's tap-to-copy
+        // handler. Prevents: "I tried to drag a ↔ yellow slot, barely
+        // moved my finger, and the whole row copied."
+        if (canDragFrom) e.stopPropagation();
+        if (isEditable && onClick) onClick();
+      }}
       style={{
         width: size, height: size, borderRadius: 10, background: bg, border,
         boxShadow: isActive && !empty ? '0 0 0 3px rgba(255,255,255,0.15)' : 'none',
