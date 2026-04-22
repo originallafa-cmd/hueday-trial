@@ -73,10 +73,12 @@
 // Implements spec §2 (puzzle generator), §3 (feedback), §5 (state),
 // §6 (input), §7 (visuals, feedback rendering), §8 (midnight rollover).
 //
-// v1.1 adds:
-//   • Daily Themes (weekday-biased hue palettes + reveal screen)
-//   • Practice Mode (unlimited re-attempts of today's puzzle)
-//   • Copy Last Guess button
+// v4 — Cinema-palette themes with a deterministic monthly shuffle.
+// 32 iconic-cinema palettes, each with 6 anchored target hues + small
+// ±jitter. A month's rotation is a Fisher-Yates shuffle seeded from the
+// YYYY-MM key, so every player worldwide gets the same sequence.
+// FEATURED_OVERRIDES still wins for specific dates (e.g. Friends Apr 22).
+// Legacy hueRanges path is preserved as a fallback.
 // ═══════════════════════════════════════════════════════════════════
 
 const HD_BG      = '#141414';
@@ -97,101 +99,222 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // Bump this whenever the generator/theme algorithm changes in a way that
 // makes prior saves stale. On load, if saved.genVersion !== GEN_VERSION,
 // the saved state is discarded and a fresh puzzle is generated.
-const GEN_VERSION          = 'v3-target-row-shows-hue-values';
+const GEN_VERSION          = 'v4-cinema-palettes-monthly-shuffle-2026-04-22';
 
 // ────────────────────────────────────────────────────────────────────
-// Daily themes (Feature 1)
-// One theme per weekday (Sun=0 … Sat=6).  Each theme contributes a
-// set of hue arcs [startDeg, endDeg] (wrap-aware — end may be < start).
+// Cinema palettes (v4)
+//
+// 32 iconic-cinema palettes. Each defines exactly 6 anchored target
+// hues + a small ±jitter applied per day. No stratification, no
+// widening — the targets ARE the targets. Every palette is verified
+// to have ≥18° adjacent separation on the wheel (wrap-aware).
 // ────────────────────────────────────────────────────────────────────
-const THEMES = [
-  { // Sunday — wraps 320° → 90°, total 130° arc
-    name: 'Sunset',
-    description: 'Magenta through red into orange-gold',
-    hueRanges: [[320, 90]],
+const CINEMA_PALETTES = [
+  {
+    name: 'Blade Runner 2049',
+    description: 'Neon haze of orange, cyan, and bruised magenta',
+    targetHues: [18, 40, 185, 210, 290, 325],
+    jitterMax: 4,
   },
-  { // Monday — 135° → 265°, total 130°
-    name: 'Oceanic',
-    description: 'Aqua to deep blue to blue-violet',
-    hueRanges: [[135, 265]],
+  {
+    name: 'Moonrise Kingdom',
+    description: 'Warm mustard, canvas tan, and dusty teal summer camp',
+    targetHues: [30, 55, 85, 175, 200, 280],
+    jitterMax: 3,
   },
-  { // Tuesday — wraps 350° → 120°, total 130°
-    name: 'Harvest',
-    description: 'Rose to amber to yellow-gold',
-    hueRanges: [[350, 120]],
+  {
+    name: 'Mad Max: Fury Road',
+    description: 'Scorched orange desert against deep teal shadow',
+    targetHues: [15, 35, 60, 180, 200, 225],
+    jitterMax: 3,
   },
-  { // Wednesday — 55° → 185°, total 130°
-    name: 'Woodland',
-    description: 'Yellow-green through forest into teal',
-    hueRanges: [[55, 185]],
+  {
+    name: 'The Grand Budapest Hotel',
+    description: 'Confectionery pinks, lavenders, and soft ruby reds',
+    targetHues: [340, 10, 30, 60, 280, 300],
+    jitterMax: 3,
   },
-  { // Thursday — 220° → 350°, total 130°
-    name: 'Twilight',
-    description: 'Blue-violet to deep violet to magenta',
-    hueRanges: [[220, 350]],
+  {
+    name: 'Amélie',
+    description: 'Emerald green, crimson red, and a warm Parisian yellow',
+    targetHues: [355, 20, 45, 70, 140, 165],
+    jitterMax: 3,
   },
-  { // Friday — full wheel
-    name: 'Neon Night',
-    description: 'High-contrast saturated hues across the wheel',
-    hueRanges: [[0, 360]],
+  {
+    name: 'Drive',
+    description: 'Hot pink neon, cool teal, and midnight synthwave purple',
+    targetHues: [25, 180, 275, 300, 330, 355],
+    jitterMax: 3,
   },
-  { // Saturday — wraps 280° → 50°, total 130°
-    name: 'Blossoms',
-    description: 'Rose to pink to red-orange',
-    hueRanges: [[280, 50]],
+  {
+    name: 'La La Land',
+    description: 'Sunset yellow, navy twilight, and magenta stage lights',
+    targetHues: [20, 45, 220, 250, 320, 350],
+    jitterMax: 3,
+  },
+  {
+    name: 'Her',
+    description: 'Soft coral, warm peach, and aching violet intimacy',
+    targetHues: [15, 35, 55, 270, 295, 320],
+    jitterMax: 3,
+  },
+  {
+    name: 'The Matrix',
+    description: 'Six shades of code-green cascading down the screen',
+    targetHues: [65, 85, 110, 135, 160, 185],
+    jitterMax: 3,
+  },
+  {
+    name: 'Inception',
+    description: 'Gilded gold, burnt umber, and cold dreamscape teal',
+    targetHues: [25, 45, 65, 180, 200, 220],
+    jitterMax: 3,
+  },
+  {
+    name: 'Pulp Fiction',
+    description: 'Smoky red, ochre diner light, and olive pulp-noir',
+    targetHues: [355, 20, 45, 70, 90, 115],
+    jitterMax: 3,
+  },
+  {
+    name: 'The Shining',
+    description: 'Carpet crimson, overlook yellow, and navy hallway dread',
+    targetHues: [5, 30, 55, 80, 215, 240],
+    jitterMax: 3,
+  },
+  {
+    name: 'Drive My Car',
+    description: 'Muted blue-grey, deep red lacquer, and warm cream silence',
+    targetHues: [20, 45, 195, 220, 260, 355],
+    jitterMax: 3,
+  },
+  {
+    name: 'In the Mood for Love',
+    description: 'Saturated red cheongsam, warm orange, and deep jade green',
+    targetHues: [10, 30, 140, 160, 185, 345],
+    jitterMax: 3,
+  },
+  {
+    name: 'Spirited Away',
+    description: 'Fantasy teal bathhouse, warm red lanterns, and spirit gold',
+    targetHues: [0, 30, 50, 175, 200, 220],
+    jitterMax: 3,
+  },
+  {
+    name: 'Akira',
+    description: 'Neon red bike, electric blue, and Neo-Tokyo violet',
+    targetHues: [10, 30, 210, 235, 260, 350],
+    jitterMax: 3,
+  },
+  {
+    name: '2001: A Space Odyssey',
+    description: 'Monolith red, cosmic amber, and cold interstellar blue',
+    targetHues: [20, 40, 60, 210, 235, 355],
+    jitterMax: 3,
+  },
+  {
+    name: 'Call Me By Your Name',
+    description: 'Peach, coral, olive groves, and sun-bleached Italian yellow',
+    targetHues: [15, 35, 55, 75, 95, 340],
+    jitterMax: 3,
+  },
+  {
+    name: 'Portrait of a Lady on Fire',
+    description: 'Deep ocean blue, warm red dress, and bonfire orange',
+    targetHues: [0, 25, 45, 210, 235, 260],
+    jitterMax: 3,
+  },
+  {
+    name: 'Dune (2021)',
+    description: 'Sand orange, deep amber, ochre dust, and teal shadow',
+    targetHues: [25, 45, 65, 180, 205, 230],
+    jitterMax: 3,
+  },
+  {
+    name: 'The Neon Demon',
+    description: 'Electric magenta, deep violet, and runway hot pink',
+    targetHues: [15, 250, 275, 300, 325, 350],
+    jitterMax: 3,
+  },
+  {
+    name: 'Parasite',
+    description: 'Muted grey-blue, warm wood brown, and deep basement green',
+    targetHues: [25, 45, 140, 165, 200, 225],
+    jitterMax: 3,
+  },
+  {
+    name: 'Killers of the Flower Moon',
+    description: 'Russet, deep red earth, ochre, and sun-worn brown',
+    targetHues: [15, 35, 55, 75, 330, 355],
+    jitterMax: 3,
+  },
+  {
+    name: 'Tenet',
+    description: 'Icy cyan, warm orange, and muted inverted navy',
+    targetHues: [15, 35, 180, 200, 220, 240],
+    jitterMax: 3,
+  },
+  {
+    name: 'Everything Everywhere All at Once',
+    description: 'A full-wheel rainbow of parallel-universe hues',
+    targetHues: [0, 60, 120, 180, 240, 300],
+    jitterMax: 4,
+  },
+  {
+    name: 'The French Dispatch',
+    description: 'Wes Anderson yellow, pink, minty teal, and soft lavender',
+    targetHues: [50, 75, 160, 180, 280, 340],
+    jitterMax: 3,
+  },
+  {
+    name: 'Lost in Translation',
+    description: 'Neon Tokyo pink, cool grey-blue, warm yellow, and mauve',
+    targetHues: [50, 210, 235, 285, 315, 340],
+    jitterMax: 3,
+  },
+  {
+    name: 'A Clockwork Orange',
+    description: 'Milk-bar white, red-orange unease, and cold clinical blue',
+    targetHues: [10, 30, 50, 205, 225, 245],
+    jitterMax: 3,
+  },
+  {
+    name: 'Eternal Sunshine of the Spotless Mind',
+    description: 'Icy beach blue, warm yellow memory, and faded pink',
+    targetHues: [20, 45, 200, 220, 330, 355],
+    jitterMax: 3,
+  },
+  {
+    name: 'The Lighthouse',
+    description: 'Storm-lashed blues, lantern ochre, and briny moonlight',
+    targetHues: [20, 40, 180, 205, 230, 260],
+    jitterMax: 3,
+  },
+  {
+    name: 'Joker (2019)',
+    description: 'Teal-grey Gotham, warm red smile, and ochre stairwell',
+    targetHues: [15, 35, 60, 175, 200, 355],
+    jitterMax: 3,
+  },
+  {
+    name: 'Barbie (2023)',
+    description: 'Hot pink, soft bubblegum, magenta, and an aqua accent',
+    targetHues: [0, 20, 180, 290, 320, 340],
+    jitterMax: 3,
   },
 ];
 
-// One-off themed palettes that override the weekday default for a
-// specific date. Each hueRanges entry is a 6-zone palette, one zone per
-// target slot (well-separated centers), so stratified sampling lands one
-// hue in each zone. Useful for seasonal, pop-culture, or guest themes.
+// Featured one-off overrides for specific dates. These win over the
+// monthly rotation and can use EITHER the new cinema-palette format
+// (targetHues + jitterMax) OR the legacy arc-based format (hueRanges).
 const FEATURED_OVERRIDES = {
   '2026-04-22': {
     name: 'Friends',
     description: 'Central Perk orange, Monica purple, 90s teal & more',
-    hueRanges: [
-      [350,  15],   // slot 1 — burgundy / Thanksgiving red
-      [ 20,  50],   // slot 2 — Central Perk orange
-      [ 50,  70],   // slot 3 — cream / lamp yellow
-      [130, 155],   // slot 4 — pine / Christmas green
-      [170, 195],   // slot 5 — Rachel bathroom teal
-      [260, 285],   // slot 6 — Monica's purple walls
-    ],
+    targetHues: [347, 26, 69, 134, 185, 256],
+    jitterMax: 3,
   },
 };
-
-function themeForDate(dateStr) {
-  const override = FEATURED_OVERRIDES[dateStr];
-  if (override) return override;
-  const weekday = new Date(dateStr + 'T12:00:00').getDay();
-  return THEMES[weekday];
-}
-
-// Arc length of a single [start, end] range, wrap-aware.
-// A full wheel [0, 360] → 360. [340, 60] → 80.
-function arcLength(range) {
-  const [a, b] = range;
-  const span = ((b - a) % 360 + 360) % 360;
-  return span === 0 ? 360 : span;
-}
-// Sample a hue that lies `u` fraction into a single arc.
-function hueAtArcFraction(range, u) {
-  const [a] = range;
-  const len = arcLength(range);
-  return ((a + u * len) % 360 + 360) % 360;
-}
-// Map u∈[0,1) proportionally across a list of arcs (by arc length).
-function hueFromRanges(ranges, u) {
-  const lens = ranges.map(arcLength);
-  const total = lens.reduce((s, x) => s + x, 0);
-  let target = u * total;
-  for (let i = 0; i < ranges.length; i++) {
-    if (target < lens[i]) return hueAtArcFraction(ranges[i], target / lens[i]);
-    target -= lens[i];
-  }
-  return hueAtArcFraction(ranges[ranges.length - 1], 0.999);
-}
 
 // ────────────────────────────────────────────────────────────────────
 // HSB → sRGB rendering (matches SwiftUI's Color(hue:sat:bright:))
@@ -263,7 +386,74 @@ function minAdjacentGap(hues) {
   return minGap;
 }
 
-// Original uniform generator, preserved as the guaranteed-safe fallback.
+// ────────────────────────────────────────────────────────────────────
+// Monthly shuffled rotation
+//
+// Given a dateStr "YYYY-MM-DD", returns an index into CINEMA_PALETTES.
+// The month key ("YYYY-MM") seeds a Fisher-Yates shuffle of the palette
+// indices, then day-of-month picks one. Same date worldwide = same
+// palette. A new month rerolls the order.
+// ────────────────────────────────────────────────────────────────────
+function monthlyShuffledThemeIndex(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const monthKey = `${y}-${String(m).padStart(2, '0')}`;
+  let state = fnv1a64(monthKey);
+  const N = CINEMA_PALETTES.length;
+  const indices = Array.from({ length: N }, (_, i) => i);
+  // Fisher-Yates: consume one uniform per swap, deterministic from state.
+  for (let i = N - 1; i > 0; i--) {
+    let u;
+    [state, u] = nextUniform(state);
+    const j = Math.floor(u * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+  // Day-of-month 1..31 wraps around N if a month has more days than palettes.
+  return indices[(d - 1) % N];
+}
+
+function themeForDate(dateStr) {
+  const override = FEATURED_OVERRIDES[dateStr];
+  if (override) return override;
+  return CINEMA_PALETTES[monthlyShuffledThemeIndex(dateStr)];
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Legacy arc-based helpers (kept for FEATURED_OVERRIDES that use
+// hueRanges rather than targetHues). Not used by the cinema palettes.
+// ────────────────────────────────────────────────────────────────────
+function arcLength(range) {
+  const [a, b] = range;
+  const span = ((b - a) % 360 + 360) % 360;
+  return span === 0 ? 360 : span;
+}
+function hueAtArcFraction(range, u) {
+  const [a] = range;
+  const len = arcLength(range);
+  return ((a + u * len) % 360 + 360) % 360;
+}
+function hueFromRanges(ranges, u) {
+  const lens = ranges.map(arcLength);
+  const total = lens.reduce((s, x) => s + x, 0);
+  let target = u * total;
+  for (let i = 0; i < ranges.length; i++) {
+    if (target < lens[i]) return hueAtArcFraction(ranges[i], target / lens[i]);
+    target -= lens[i];
+  }
+  return hueAtArcFraction(ranges[ranges.length - 1], 0.999);
+}
+function widenRangesForSeparation(ranges, minTotalArc) {
+  const total = ranges.reduce((s, r) => s + arcLength(r), 0);
+  if (total >= minTotalArc) return ranges;
+  const scale = minTotalArc / total;
+  return ranges.map(([a, b]) => {
+    const len = arcLength([a, b]);
+    const center = ((a + len / 2) % 360 + 360) % 360;
+    const newLen = len * scale;
+    const newA = ((center - newLen / 2) % 360 + 360) % 360;
+    const newB = ((center + newLen / 2) % 360 + 360) % 360;
+    return [newA, newB];
+  });
+}
 function uniformPuzzleHues(stateIn) {
   let state = stateIn;
   let u;
@@ -279,24 +469,17 @@ function uniformPuzzleHues(stateIn) {
   return { state, hues };
 }
 
-// Expand narrow theme arcs so 6 hues with ≥20° separation fit.
-// 6 slots × 20° = 120° absolute minimum — we pad to 150° for breathing room.
-// We widen each arc outward from its center proportionally to the shortage.
-function widenRangesForSeparation(ranges, minTotalArc) {
-  const total = ranges.reduce((s, r) => s + arcLength(r), 0);
-  if (total >= minTotalArc) return ranges;
-  const scale = minTotalArc / total;
-  return ranges.map(([a, b]) => {
-    const len = arcLength([a, b]);
-    const center = ((a + len / 2) % 360 + 360) % 360;
-    const newLen = len * scale;
-    const newA = ((center - newLen / 2) % 360 + 360) % 360;
-    const newB = ((center + newLen / 2) % 360 + 360) % 360;
-    return [newA, newB];
-  });
-}
-
-// puzzleForDate(date) → {S, B, hues: [6], theme} — spec §2 + theme bias
+// ────────────────────────────────────────────────────────────────────
+// puzzleForDate(date) → {S, B, hues: [6], theme}
+//
+// Modes:
+//   • targetHues mode (cinema palettes + Friends override): jitter each
+//     anchor by ±jitterMax°, round, return. No stratification, no
+//     widening. If jittered hues dip below MIN_GAP=12° (rare), fall
+//     back to the exact un-jittered anchors.
+//   • hueRanges mode (legacy): preserved arc-based stratified sampling
+//     with widening + reroll fallback.
+// ────────────────────────────────────────────────────────────────────
 function puzzleForDate(dateStr) {
   const theme = themeForDate(dateStr);
   let state = fnv1a64(dateStr);
@@ -304,55 +487,64 @@ function puzzleForDate(dateStr) {
   [state, u] = nextUniform(state); const S = 0.60 + u * 0.15;   // spec §2.5
   [state, u] = nextUniform(state); const B = 0.48 + u * 0.10;   // spec §2.5
 
-  const MIN_GAP = 12;
-  const JITTER  = 7; // ±7°
+  // ── New format: explicit six anchors + per-day jitter ──
+  if (Array.isArray(theme.targetHues) && theme.targetHues.length === 6) {
+    const jitterMax = typeof theme.jitterMax === 'number' ? theme.jitterMax : 3;
+    const jittered = theme.targetHues.map((anchor) => {
+      let uj;
+      [state, uj] = nextUniform(state);
+      const j = (uj * 2 - 1) * jitterMax; // ±jitterMax°
+      let h = Math.round(((anchor + j) % 360 + 360) % 360);
+      if (h === 360) h = 0;
+      return h;
+    });
+    // Safety: jitter shouldn't push neighbours too close, but if anchors
+    // are tightly spaced (e.g. monochromatic palettes) a worst-case draw
+    // could nip below 12°. Fall back to un-jittered anchors in that case.
+    const hues = minAdjacentGap(jittered) >= 12
+      ? jittered
+      : theme.targetHues.map(h => {
+          let v = Math.round(((h % 360) + 360) % 360);
+          if (v === 360) v = 0;
+          return v;
+        });
+    return { S, B, hues, theme };
+  }
 
-  // Theme arcs are now honest widths (≥130°) so widening should never
-  // fire in practice. We keep widenRangesForSeparation as a safety net:
-  // it only triggers if a theme's total arc is below the safe floor of
-  // 6 × (MIN_GAP + 2·JITTER) = 6 × 26° = 156°. Since all defined themes
-  // are ≥130° and we stratify + reroll up to 20 times with MIN_GAP=12°,
-  // this floor comfortably fits. Arcs of 130° divided into 6 stratified
-  // cells = ~21.7° each; worst-case adjacent gap with ±7° jitter = ~7.7°
-  // which CAN dip below MIN_GAP=12° on an unlucky draw — hence the
-  // 20-attempt reroll. The widener only fires if that genuinely fails.
+  // ── Legacy format: arc-based stratified sampling ──
+  const MIN_GAP = 12;
+  const JITTER  = 7;
   const MIN_TOTAL_ARC = 6 * (MIN_GAP + 2 * JITTER);
   const effectiveRanges = widenRangesForSeparation(theme.hueRanges, MIN_TOTAL_ARC);
 
-  // We keep advancing the seed deterministically — each attempt burns
-  // a fresh batch of uniforms so a retry looks like "the next draw",
-  // not a re-draw of the same numbers.
   let hues = null;
   for (let attempt = 0; attempt < 20; attempt++) {
     const candidate = [];
-    // Stratify u across [0,1) so the 6 slots spread through the
-    // combined theme arcs evenly (plus jitter). This cheaply
-    // preserves separation when the theme is wide.
     for (let i = 0; i < 6; i++) {
       let uh;
       [state, uh] = nextUniform(state);
-      const strat = (i + uh) / 6; // stratified ∈ [i/6, (i+1)/6)
+      const strat = (i + uh) / 6;
       let h = hueFromRanges(effectiveRanges, strat);
 
       let uj;
       [state, uj] = nextUniform(state);
       const jitter = (uj * 2 - 1) * JITTER;
       h = ((h + jitter) % 360 + 360) % 360;
-      // Round to integer degrees so the player always sees clean whole numbers.
       h = Math.round(h);
       if (h === 360) h = 0;
       candidate.push(h);
     }
     if (minAdjacentGap(candidate) >= MIN_GAP) { hues = candidate; break; }
-    // Perturb & retry — consume more state on next loop iteration.
   }
 
   if (!hues) {
-    // Fallback: original uniform generator, which is guaranteed safe
-    // by construction (α + 60·i ± 15 spacing ⇒ min gap ≥ 30°).
     const r = uniformPuzzleHues(state);
     state = r.state;
-    hues = r.hues;
+    hues = r.hues.map(h => {
+      let v = Math.round(h);
+      if (v === 360) v = 0;
+      return v;
+    });
   }
 
   return { S, B, hues, theme };
