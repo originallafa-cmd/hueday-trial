@@ -18,10 +18,6 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxODAgMTgwIiB3aWR0aD0iMTgwIiBoZWlnaHQ9IjE4MCI+CiAgPHJlY3Qgd2lkdGg9IjE4MCIgaGVpZ2h0PSIxODAiIHJ4PSIzOCIgZmlsbD0iIzE0MTQxNCIvPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDI0IDI2KSI+CiAgICA8cmVjdCB3aWR0aD0iMTMyIiBoZWlnaHQ9IjIwIiByeD0iNSIgZmlsbD0iI2Q5MmIyYiIvPgogICAgPHJlY3QgeT0iMjIiIHdpZHRoPSIxMzIiIGhlaWdodD0iMjAiIHJ4PSI1IiBmaWxsPSIjZTI4YjFmIi8+CiAgICA8cmVjdCB5PSI0NCIgd2lkdGg9IjEzMiIgaGVpZ2h0PSIyMCIgcng9IjUiIGZpbGw9IiNkOWQ5MmIiLz4KICAgIDxyZWN0IHk9IjY2IiB3aWR0aD0iMTMyIiBoZWlnaHQ9IjIwIiByeD0iNSIgZmlsbD0iIzJiZDk2YiIvPgogICAgPHJlY3QgeT0iODgiIHdpZHRoPSIxMzIiIGhlaWdodD0iMjAiIHJ4PSI1IiBmaWxsPSIjMmI5YmQ5Ii8+CiAgICA8cmVjdCB5PSIxMTAiIHdpZHRoPSIxMzIiIGhlaWdodD0iMjAiIHJ4PSI1IiBmaWxsPSIjOWIyYmQ5Ii8+CiAgPC9nPgo8L3N2Zz4K" />
 <!-- PWA manifest (inline base64) — references icon.png for Android maskable icons. -->
 <link rel="manifest" href="data:application/manifest+json;charset=utf-8;base64,eyJuYW1lIjoiSHVlZGF5Iiwic2hvcnRfbmFtZSI6Ikh1ZWRheSIsImRlc2NyaXB0aW9uIjoiQSBkYWlseSBjb2xvciBwdXp6bGUgaW5zcGlyZWQgYnkgY2luZW1hIHBhbGV0dGVzIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzE0MTQxNCIsInRoZW1lX2NvbG9yIjoiIzE0MTQxNCIsInN0YXJ0X3VybCI6Ii4vIiwib3JpZW50YXRpb24iOiJwb3J0cmFpdCIsImljb25zIjpbeyJzcmMiOiJpY29uLnBuZyIsInNpemVzIjoiNTEyeDUxMiIsInR5cGUiOiJpbWFnZS9wbmciLCJwdXJwb3NlIjoiYW55IG1hc2thYmxlIn1dfQo=" />
-<!-- Cache-busting: prototype iterates fast; we want fresh HTML every load. -->
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-<meta http-equiv="Pragma" content="no-cache" />
-<meta http-equiv="Expires" content="0" />
 <style>
   html, body { margin: 0; padding: 0; height: 100%; }
   html { background: #141414; }
@@ -35,8 +31,20 @@
     user-select: none;
     -webkit-tap-highlight-color: transparent;
   }
-  #root { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  /* iOS URL bar collapses; 100dvh follows it, 100vh doesn't — Submit button
+     sliding under the home indicator was the old symptom. */
+  #root { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; }
   button { -webkit-user-select: none; user-select: none; font-family: inherit; }
+
+  /* Respect the OS reduced-motion preference. Everything keeps working, just
+     without the motion. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 
   @keyframes hueday-theme-fade-in {
     from { opacity: 0; transform: translateY(6px); }
@@ -963,16 +971,22 @@ function categoryForDate(dateStr) {
   return CATEGORY_SCHEDULE[(jsDay + 6) % 7];
 }
 
+// Cache themeForDate across an archive render — called up to 365× in
+// allPastDaysSinceLaunch; each call does an O(d) weekday-count loop.
+const __themeCache = new Map();
 function themeForDate(dateStr) {
+  const cached = __themeCache.get(dateStr);
+  if (cached) return cached;
+
   const override = FEATURED_OVERRIDES[dateStr];
-  if (override) return override;
+  if (override) { __themeCache.set(dateStr, override); return override; }
 
   const category = categoryForDate(dateStr);
   const pool = [];
   for (let i = 0; i < CINEMA_PALETTES.length; i++) {
     if (CINEMA_PALETTES[i].category === category) pool.push(i);
   }
-  if (pool.length === 0) return CINEMA_PALETTES[0]; // safety
+  if (pool.length === 0) { __themeCache.set(dateStr, CINEMA_PALETTES[0]); return CINEMA_PALETTES[0]; }
 
   // Monthly Fisher-Yates over this category's pool, seeded by YYYY-MM + category.
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -994,7 +1008,9 @@ function themeForDate(dateStr) {
     if (CATEGORY_SCHEDULE[(dDay + 6) % 7] === category) categoryDayCount++;
   }
   const pickIdx = (categoryDayCount - 1) % shuffled.length;
-  return CINEMA_PALETTES[shuffled[pickIdx]];
+  const result = CINEMA_PALETTES[shuffled[pickIdx]];
+  __themeCache.set(dateStr, result);
+  return result;
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -1952,6 +1968,7 @@ function ArchivePanel({ open, onToggle, todayStr, onSelectDate }) {
         <div ref={containerRef} style={{
           maxHeight: scrollable ? '50vh' : 'none',
           overflowY: scrollable ? 'auto' : 'visible',
+          WebkitOverflowScrolling: 'touch',
         }}>
           {entries.length === 0 ? (
             <div style={{
@@ -2898,7 +2915,12 @@ function App() {
       // since last save. In the latter case prior rows' feedback colors
       // were computed against stale targets, so we wipe and start fresh.
       if (saved && saved.dateStr === today && saved.genVersion !== GEN_VERSION) {
+        // A GEN_VERSION bump means prior feedback was computed against different
+        // targets than the new algorithm produces. Wipe today's in-progress
+        // state AND the flags that would otherwise suppress onboarding for a
+        // returning player seeing a brand-new puzzle rhythm.
         try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+        try { localStorage.removeItem('hueday-how-to-seen'); } catch (_) {}
       }
       // fresh puzzle for today (also handles first-ever launch)
       setDateStr(today);
@@ -3116,8 +3138,15 @@ function App() {
     });
   };
 
+  const submittingRef = React.useRef(false);
   const onSubmit = () => {
     if (!canSubmit) return;
+    // Prevent a double-tap of Submit from scoring the same row twice while
+    // the feedback animation is still playing and React hasn't re-rendered
+    // the incremented currentRow yet.
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setTimeout(() => { submittingRef.current = false; }, 500);
 
     if (practiceMode) {
       haptic(20);
