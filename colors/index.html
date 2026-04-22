@@ -58,6 +58,44 @@
   .practice-pill {
     animation: hueday-pill-pulse 1800ms ease-in-out infinite;
   }
+
+  /* Mid-game hint line — fades in once when it first appears. */
+  @keyframes hueday-midhint-fade-in {
+    from { opacity: 0; transform: translateY(3px); }
+    to   { opacity: 1; transform: translateY(0);   }
+  }
+  .hueday-midhint {
+    animation: hueday-midhint-fade-in 500ms ease both;
+  }
+
+  /* Per-slot feedback animations after a row submits. Staggered in JS
+     via animation-delay (100ms per slot, left→right). */
+  @keyframes hueday-green-lock {
+    0%   { transform: scale(1);    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.00); }
+    30%  { transform: scale(1.14); box-shadow: 0 0 0 6px rgba(74, 222, 128, 0.55); }
+    60%  { transform: scale(0.97); box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.18); }
+    100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.00); }
+  }
+  @keyframes hueday-yellow-shake {
+    0%   { transform: translateX(0); }
+    20%  { transform: translateX(-4px); }
+    40%  { transform: translateX(4px); }
+    60%  { transform: translateX(-3px); }
+    80%  { transform: translateX(3px); }
+    100% { transform: translateX(0); }
+  }
+  @keyframes hueday-grey-settle {
+    0%   { transform: scale(1.04); opacity: 0.5; }
+    100% { transform: scale(1);    opacity: 1;   }
+  }
+  .hueday-fb-green  { animation: hueday-green-lock 420ms ease both; }
+  .hueday-fb-yellow { animation: hueday-yellow-shake 350ms ease both; }
+  .hueday-fb-grey   { animation: hueday-grey-settle 300ms ease both; }
+
+  /* Tap-to-copy affordance on submitted rows */
+  .hueday-row-copyable { cursor: pointer; transition: transform 120ms ease, filter 160ms ease; }
+  .hueday-row-copyable:hover { filter: brightness(1.08); }
+  .hueday-row-copyable:active { transform: scale(0.985); filter: brightness(0.95); }
 </style>
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
@@ -99,7 +137,7 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // Bump this whenever the generator/theme algorithm changes in a way that
 // makes prior saves stale. On load, if saved.genVersion !== GEN_VERSION,
 // the saved state is discarded and a fresh puzzle is generated.
-const GEN_VERSION          = 'v11-movie-poster-reveal-2026-04-22';
+const GEN_VERSION          = 'v12-midhint-taprow-anims-2026-04-22';
 const SCORE_HISTORY_KEY    = 'hueday-score-history';
 
 // ────────────────────────────────────────────────────────────────────
@@ -144,6 +182,50 @@ const TMDB_POSTER_PATHS = {
   'Joker (2019)': '/udDclJoHjfjb8Ekgsd4FDteOkCU.jpg',
   'Barbie (2023)': '/iuFNMS8U5cb6xfzi51Dbkovj7vM.jpg',
 };
+
+// Mid-game single-word mood hints. Shown between the scoring stack and
+// the guess grid after the player has submitted ≥3 rows on the daily
+// track. NOT a hint penalty — automatic and universal. Words chosen to
+// evoke the palette's mood WITHOUT spoiling the movie title.
+const MID_HINTS = {
+  'Blade Runner 2049': 'neon',
+  'Moonrise Kingdom': 'mustard',
+  'Mad Max: Fury Road': 'dust',
+  'The Grand Budapest Hotel': 'pastels',
+  'Amélie': 'warmth',
+  'Drive': 'synth',
+  'La La Land': 'dusk',
+  'Her': 'peach',
+  'The Matrix': 'monochrome',
+  'Inception': 'gilded',
+  'Pulp Fiction': 'diner',
+  'The Shining': 'dread',
+  'Drive My Car': 'restraint',
+  'In the Mood for Love': 'longing',
+  'Spirited Away': 'spirit',
+  'Akira': 'velocity',
+  '2001: A Space Odyssey': 'cosmic',
+  'Call Me By Your Name': 'summer',
+  'Portrait of a Lady on Fire': 'bonfire',
+  'Dune (2021)': 'sand',
+  'The Neon Demon': 'glare',
+  'Parasite': 'basement',
+  'Killers of the Flower Moon': 'earth',
+  'Tenet': 'inverted',
+  'Everything Everywhere All at Once': 'multiverse',
+  'The French Dispatch': 'whimsy',
+  'Lost in Translation': 'karaoke',
+  'A Clockwork Orange': 'clinical',
+  'Eternal Sunshine of the Spotless Mind': 'memory',
+  'The Lighthouse': 'storm',
+  'Joker (2019)': 'stairwell',
+  'Barbie (2023)': 'plastic',
+};
+
+function midHintFor(theme) {
+  if (!theme || !theme.name) return null;
+  return MID_HINTS[theme.name] || null;
+}
 
 // 32 iconic-cinema palettes. Each defines exactly 6 anchored target
 // hues + a small ±jitter applied per day. No stratification, no
@@ -834,7 +916,7 @@ function PreviewBanner({ virtualDateStr, offset, onBack }) {
   );
 }
 
-function Swatch({ hue, S, B, feedback, isActive, isEditable, size = 46, showDeg, distance, onClick, rowIdx, slotIdx, onDragStart }) {
+function Swatch({ hue, S, B, feedback, isActive, isEditable, size = 46, showDeg, distance, onClick, rowIdx, slotIdx, onDragStart, animate, animDelayMs }) {
   const outline =
       feedback === 'green'  ? HD_GREEN
     : feedback === 'yellow' ? HD_YELLOW
@@ -852,8 +934,21 @@ function Swatch({ hue, S, B, feedback, isActive, isEditable, size = 46, showDeg,
 
   const canDragFrom = !empty && onDragStart != null;
 
+  // Per-slot feedback animation. Only applied when `animate` is true AND
+  // we have feedback. The parent (GuessGrid) only passes `animate` on the
+  // very first render after a row's submittedAt timestamp changes — the
+  // row wrapper uses `key={row.submittedAt}` so this component remounts
+  // fresh on each submit, guaranteeing a single play per submission.
+  const animClass = (animate && feedback)
+    ? (feedback === 'green'  ? 'hueday-fb-green'
+      : feedback === 'yellow' ? 'hueday-fb-yellow'
+      : feedback === 'grey'   ? 'hueday-fb-grey'
+      : '')
+    : '';
+
   return (
     <div
+      className={animClass}
       data-drop-row={rowIdx != null ? rowIdx : undefined}
       data-drop-slot={slotIdx != null ? slotIdx : undefined}
       onPointerDown={canDragFrom ? (e) => onDragStart(e, hue, rowIdx, slotIdx) : undefined}
@@ -865,6 +960,7 @@ function Swatch({ hue, S, B, feedback, isActive, isEditable, size = 46, showDeg,
         flexShrink: 0, position: 'relative',
         cursor: canDragFrom ? 'grab' : isEditable ? 'pointer' : 'default',
         touchAction: canDragFrom ? 'none' : 'auto',
+        animationDelay: animClass && animDelayMs ? `${animDelayMs}ms` : undefined,
       }}
     >
       {feedback === 'yellow' && (
@@ -1238,35 +1334,57 @@ function ScoreCard({ score, attempts, solved, hintsUsed, exactBonus }) {
   );
 }
 
-function GuessGrid({ rows, puzzle, currentRow, activeSlotIdx, onSlotTap, onDragStart, swatchSize, rowGap, colGap, showDeg }) {
+function GuessGrid({ rows, puzzle, currentRow, activeSlotIdx, onSlotTap, onDragStart, swatchSize, rowGap, colGap, showDeg, onCopyRow, gameDone }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: rowGap, alignItems: 'center' }}>
-      {rows.map((row, rIdx) => (
-        <div key={rIdx} style={{ display: 'flex', gap: colGap }}>
-          {row.slots.map((slot, sIdx) => {
-            const isActive = rIdx === currentRow && sIdx === activeSlotIdx && !row.submitted;
-            const isEditable = rIdx === currentRow && !row.submitted;
-            return (
-              <Swatch
-                key={sIdx}
-                hue={slot.hue}
-                S={puzzle.S}
-                B={puzzle.B}
-                feedback={row.submitted ? slot.feedback : null}
-                isActive={isActive}
-                isEditable={isEditable}
-                rowIdx={rIdx}
-                slotIdx={sIdx}
-                onDragStart={onDragStart}
-                size={swatchSize}
-                showDeg={showDeg && row.submitted}
-                distance={row.submitted ? slot.distance : null}
-                onClick={() => onSlotTap && onSlotTap(rIdx, sIdx)}
-              />
-            );
-          })}
-        </div>
-      ))}
+      {rows.map((row, rIdx) => {
+        // Submitted rows become tap-to-copy sources (only while game live).
+        const canCopyFromRow = row.submitted && !gameDone && onCopyRow;
+        // Keying the row wrapper on submittedAt forces a remount when the
+        // row transitions from in-progress → submitted, which causes each
+        // Swatch inside to mount fresh and play its feedback animation
+        // exactly once per submission. Re-renders from unrelated state
+        // (pickerHue, activeSlot, etc.) leave submittedAt untouched, so
+        // the animations don't re-play.
+        const rowKey = row.submitted
+          ? `r${rIdx}-s-${row.submittedAt || 'sub'}`
+          : `r${rIdx}-live`;
+        const rowClick = canCopyFromRow ? () => onCopyRow(rIdx) : undefined;
+        return (
+          <div
+            key={rowKey}
+            className={canCopyFromRow ? 'hueday-row-copyable' : undefined}
+            onClick={rowClick}
+            style={{ display: 'flex', gap: colGap }}
+            title={canCopyFromRow ? 'Tap to copy this row into your current guess' : undefined}
+          >
+            {row.slots.map((slot, sIdx) => {
+              const isActive = rIdx === currentRow && sIdx === activeSlotIdx && !row.submitted;
+              const isEditable = rIdx === currentRow && !row.submitted;
+              return (
+                <Swatch
+                  key={sIdx}
+                  hue={slot.hue}
+                  S={puzzle.S}
+                  B={puzzle.B}
+                  feedback={row.submitted ? slot.feedback : null}
+                  isActive={isActive}
+                  isEditable={isEditable}
+                  rowIdx={rIdx}
+                  slotIdx={sIdx}
+                  onDragStart={onDragStart}
+                  size={swatchSize}
+                  showDeg={showDeg && row.submitted}
+                  distance={row.submitted ? slot.distance : null}
+                  onClick={() => onSlotTap && onSlotTap(rIdx, sIdx)}
+                  animate={row.submitted}
+                  animDelayMs={row.submitted ? sIdx * 100 : 0}
+                />
+              );
+            })}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1874,6 +1992,8 @@ function App() {
 
   // Helper: score a row and return the updated row + allGreen flag.
   // In strict practice, a green requires d === 0 (exact integer match).
+  // submittedAt is a monotonic timestamp used as a React key by GuessGrid
+  // to ensure each row's per-slot feedback animation plays exactly once.
   const scoreRow = (row, strict = false) => {
     const guesses = row.slots.map(s => s.hue);
     const { feedback: rowFb, dist: rowDist } = feedbackForRow(guesses, puzzle.hues, strict);
@@ -1881,7 +2001,7 @@ function App() {
       ...s, feedback: rowFb[j], distance: rowDist[j],
     }));
     const allGreen = rowFb.every(f => f === 'green');
-    return { row: { ...row, submitted: true, slots: scored }, allGreen };
+    return { row: { ...row, submitted: true, submittedAt: Date.now(), slots: scored }, allGreen };
   };
 
   // Wrapped showDeg toggle — flips hintsUsed to true the first time the
@@ -1992,6 +2112,32 @@ function App() {
     if (cRow <= 0) return;
     const src = activeRows[cRow - 1];
     if (!src || !src.submitted) return;
+    if (practiceMode) {
+      setPracticeRows(prev => prev.map((r, i) => i === cRow ? {
+        ...r,
+        slots: r.slots.map((s, j) => ({ ...s, hue: src.slots[j].hue })),
+      } : r));
+      setPracticeActiveSlot(0);
+    } else {
+      setRows(prev => prev.map((r, i) => i === cRow ? {
+        ...r,
+        slots: r.slots.map((s, j) => ({ ...s, hue: src.slots[j].hue })),
+      } : r));
+      setActiveSlot(0);
+    }
+    haptic(8);
+  };
+
+  // Tap-to-copy (row-level): tapping any submitted row pastes its hues
+  // into the current editable row. QoL helper — does NOT set hintsUsed.
+  // Guarded in GuessGrid via `gameDone` so it's a no-op on finished games.
+  const onCopyRow = (srcRowIdx) => {
+    if (activeState !== 'in-progress') return;
+    const cRow = activeRowIdx;
+    const src = activeRows[srcRowIdx];
+    if (!src || !src.submitted) return;
+    if (srcRowIdx === cRow) return; // can't copy the active row into itself
+    if (activeRows[cRow]?.submitted) return;
     if (practiceMode) {
       setPracticeRows(prev => prev.map((r, i) => i === cRow ? {
         ...r,
@@ -2163,6 +2309,15 @@ function App() {
   const inPreview = virtualDateOffset > 0;
   const virtualDateStr = inPreview ? dateStr : null;
 
+  // ── Mid-game mood hint (Feature A) ──
+  // Shown only on the daily track (including preview mode for consistency)
+  // once the player has submitted ≥3 rows AND the game is still live.
+  // Not tied to hintsUsed — universal free nudge, not a penalty.
+  const submittedCount = rows.filter(r => r.submitted).length;
+  const midHint = (!practiceMode && state === 'in-progress' && submittedCount >= 3)
+    ? midHintFor(puzzle.theme)
+    : null;
+
   return (
     <div style={{
       width: 'min(420px, 100vw)',
@@ -2203,6 +2358,30 @@ function App() {
 
       <ScoringPanel open={scoringOpen} onToggle={() => setScoringOpen(v => !v)} />
 
+      {midHint && (
+        <div
+          key={`midhint-${puzzle.theme ? puzzle.theme.name : 'none'}`}
+          className="hueday-midhint"
+          style={{
+            margin: '0 18px 8px',
+            textAlign: 'center',
+            fontSize: 11,
+            color: HD_MUTED,
+            fontStyle: 'italic',
+            letterSpacing: 0.4,
+            lineHeight: 1.4,
+          }}
+        >
+          <span style={{
+            fontStyle: 'normal', fontWeight: 700, letterSpacing: 2,
+            textTransform: 'uppercase', fontSize: 9.5, color: HD_MUTED, marginRight: 6,
+          }}>Hint</span>
+          <span style={{ color: '#9a9a9a' }}>·</span>
+          <span style={{ marginLeft: 6 }}>a sense of: </span>
+          <span style={{ color: HD_TEXT }}>&ldquo;{midHint}&rdquo;</span>
+        </div>
+      )}
+
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '4px 18px 0', minHeight: 0 }}>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 14 }}>
           <GuessGrid
@@ -2216,6 +2395,8 @@ function App() {
             rowGap={showDeg ? 20 : 7}
             colGap={7}
             showDeg={showDeg}
+            onCopyRow={onCopyRow}
+            gameDone={done}
           />
 
           {canCopyLast && (
