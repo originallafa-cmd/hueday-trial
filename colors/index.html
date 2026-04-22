@@ -148,7 +148,7 @@ const PRACTICE_BEST_KEY    = 'hueday-practice-best';
 // discarded and a fresh puzzle is generated. v13 bump is justified:
 // every palette has been renamed and four were re-tuned, so
 // saved.themeName and prior feedback colors would mismatch.
-const GEN_VERSION          = 'v15-archive-2026-04-22';
+const GEN_VERSION          = 'v16-archive-extensions-2026-04-22';
 const SCORE_HISTORY_KEY    = 'hueday-score-history';
 
 // ────────────────────────────────────────────────────────────────────
@@ -579,7 +579,7 @@ function themeForDate(dateStr) {
 // Puzzle numbering (Change 5)
 // Days-since-launch → "Puzzle #N", shown in TitleBar.
 // ────────────────────────────────────────────────────────────────────
-const LAUNCH_DATE = '2026-04-18'; // First day Hueday went live. Counts from this.
+const LAUNCH_DATE = '2026-04-01'; // First day Hueday went live. Counts from this.
 
 function puzzleNumberFor(dateStr) {
   const launch = new Date(LAUNCH_DATE + 'T12:00:00');
@@ -1333,7 +1333,46 @@ function ArchivePanel({ open, onToggle, todayStr, onSelectDate }) {
     () => allPastDaysSinceLaunch(todayStr),
     [todayStr]
   );
+  // Load score history once per open for solved/filmBonus markers.
+  // Re-read whenever the panel opens so freshly-played days show up.
+  const scoreHistory = React.useMemo(
+    () => (open ? loadScoreHistory() : {}),
+    [open, todayStr]
+  );
   const scrollable = entries.length > 30;
+  const containerRef = React.useRef(null);
+
+  // Month-key helper — YYYY-MM of the entry's localized date.
+  const monthKeyOf = (dateStr) => dateStr.slice(0, 7); // "2026-04"
+  const monthLabelOf = (dateStr) => {
+    const d = new Date(dateStr + 'T12:00:00');
+    return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  };
+
+  // Determine which entries should be preceded by a chapter header.
+  // A header is inserted when an entry's month differs from the previous entry's month
+  // (the first entry never gets a header, since all entries may share one month).
+  const headerBeforeIdx = React.useMemo(() => {
+    const set = new Set();
+    for (let i = 1; i < entries.length; i++) {
+      if (monthKeyOf(entries[i].dateStr) !== monthKeyOf(entries[i - 1].dateStr)) {
+        set.add(i);
+      }
+    }
+    return set;
+  }, [entries]);
+
+  const onRandomJump = () => {
+    if (!entries.length) return;
+    // Smooth-scroll the archive list back to top, then fire the handler.
+    if (containerRef.current) {
+      try { containerRef.current.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) {}
+    }
+    const idx = Math.floor(Math.random() * entries.length);
+    const pick = entries[idx];
+    onSelectDate(pick.dateStr);
+  };
+
   return (
     <div style={{
       margin: '0 18px 10px',
@@ -1353,7 +1392,7 @@ function ArchivePanel({ open, onToggle, todayStr, onSelectDate }) {
         <div style={{ fontSize: 11, color: HD_MUTED }}>{open ? '▲' : '▼'}</div>
       </div>
       {open && (
-        <div style={{
+        <div ref={containerRef} style={{
           maxHeight: scrollable ? '50vh' : 'none',
           overflowY: scrollable ? 'auto' : 'visible',
         }}>
@@ -1365,58 +1404,150 @@ function ArchivePanel({ open, onToggle, todayStr, onSelectDate }) {
             }}>
               No past puzzles yet — check back tomorrow.
             </div>
-          ) : entries.map((e, i) => {
-            const dow = new Date(e.dateStr + 'T12:00:00').toLocaleDateString(undefined, {
-              weekday: 'short',
-            });
-            const md  = new Date(e.dateStr + 'T12:00:00').toLocaleDateString(undefined, {
-              month: 'long', day: 'numeric',
-            });
-            return (
-              <button
-                key={e.dateStr}
-                className="hueday-archive-row"
-                onClick={() => onSelectDate(e.dateStr)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  width: '100%', minHeight: 44,
-                  padding: '8px 12px',
-                  background: 'transparent',
-                  border: 'none',
-                  borderBottom: i === entries.length - 1 ? 'none' : '1px solid ' + HD_BORDER,
-                  color: HD_TEXT,
-                  fontFamily: HD_FONT,
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                }}
-              >
-                <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, gap: 2 }}>
-                  <div style={{ fontSize: 11, lineHeight: 1.2 }}>
-                    <span style={{ fontWeight: 700, color: HD_TEXT }}>Day {e.dayN}</span>
-                    <span style={{ color: HD_MUTED }}> · </span>
-                    <span style={{ color: HD_MUTED }}>{dow} · {md}</span>
-                  </div>
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: 6,
-                    fontSize: 9.5, letterSpacing: 1.6, textTransform: 'uppercase',
-                    color: HD_MUTED, fontWeight: 600,
-                  }}>
-                    <span>{e.category}</span>
-                    <span style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
-                      {e.targetHues.map((h, j) => (
-                        <span key={j} style={{
-                          width: 8, height: 8, borderRadius: 2,
-                          background: hsbCss(h, e.S, e.B),
-                          display: 'inline-block',
-                        }}/>
-                      ))}
-                    </span>
-                  </div>
-                </div>
-                <div style={{ fontSize: 13, color: HD_MUTED, flexShrink: 0 }}>›</div>
-              </button>
-            );
-          })}
+          ) : (
+            <React.Fragment>
+              {/* Random-jump pill — full width, above the first entry */}
+              <div style={{ padding: '10px 12px 6px' }}>
+                <button
+                  onClick={onRandomJump}
+                  className="hueday-archive-row"
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    gap: 8, width: '100%', minHeight: 40,
+                    padding: '10px 14px',
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid ' + HD_BORDER,
+                    borderRadius: 999,
+                    color: HD_TEXT,
+                    fontFamily: HD_FONT,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: 2,
+                    textTransform: 'uppercase',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span style={{ fontSize: 14 }}>🎲</span>
+                  <span>Jump to Random Past Day</span>
+                </button>
+              </div>
+
+              {entries.map((e, i) => {
+                const dow = new Date(e.dateStr + 'T12:00:00').toLocaleDateString(undefined, {
+                  weekday: 'short',
+                });
+                const md  = new Date(e.dateStr + 'T12:00:00').toLocaleDateString(undefined, {
+                  month: 'long', day: 'numeric',
+                });
+                const hist = scoreHistory[e.dateStr] || null;
+                // Solved marker: prefer explicit `solved` field; fallback to score > 0.
+                let solvedMarker = null;
+                if (hist) {
+                  const wasSolved = (typeof hist.solved === 'boolean')
+                    ? hist.solved
+                    : (typeof hist.score === 'number' && hist.score > 0);
+                  solvedMarker = wasSolved ? 'solved' : 'played';
+                }
+                // Film-bonus dot only when any score entry exists.
+                let filmMarker = null;
+                if (hist) {
+                  filmMarker = hist.filmBonus === true ? 'gold' : 'orange';
+                }
+                const needsHeader = headerBeforeIdx.has(i);
+                return (
+                  <React.Fragment key={e.dateStr}>
+                    {needsHeader && (
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '12px 14px',
+                        userSelect: 'none',
+                      }}>
+                        <div style={{ flex: 1, height: 1, background: HD_BORDER }}/>
+                        <div style={{
+                          fontSize: 10, fontWeight: 700, letterSpacing: 2.4,
+                          textTransform: 'uppercase', color: HD_MUTED,
+                        }}>
+                          {monthLabelOf(e.dateStr)}
+                        </div>
+                        <div style={{ flex: 1, height: 1, background: HD_BORDER }}/>
+                      </div>
+                    )}
+                    <button
+                      className="hueday-archive-row"
+                      onClick={() => onSelectDate(e.dateStr)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        width: '100%', minHeight: 44,
+                        padding: '8px 12px',
+                        background: 'transparent',
+                        border: 'none',
+                        borderBottom: i === entries.length - 1 ? 'none' : '1px solid ' + HD_BORDER,
+                        color: HD_TEXT,
+                        fontFamily: HD_FONT,
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, gap: 2 }}>
+                        <div style={{ fontSize: 11, lineHeight: 1.2 }}>
+                          <span style={{ fontWeight: 700, color: HD_TEXT }}>Day {e.dayN}</span>
+                          <span style={{ color: HD_MUTED }}> · </span>
+                          <span style={{ color: HD_MUTED }}>{dow} · {md}</span>
+                        </div>
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 6,
+                          fontSize: 9.5, letterSpacing: 1.6, textTransform: 'uppercase',
+                          color: HD_MUTED, fontWeight: 600,
+                        }}>
+                          <span>{e.category}</span>
+                          <span style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+                            {e.targetHues.map((h, j) => (
+                              <span key={j} style={{
+                                width: 8, height: 8, borderRadius: 2,
+                                background: hsbCss(h, e.S, e.B),
+                                display: 'inline-block',
+                              }}/>
+                            ))}
+                          </span>
+                        </div>
+                      </div>
+                      {/* Solved check + film-bonus dot (16x16 area, before chevron) */}
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 4,
+                        minWidth: 16, height: 16,
+                        justifyContent: 'flex-end',
+                        flexShrink: 0,
+                      }}>
+                        {solvedMarker === 'solved' && (
+                          <span style={{
+                            color: '#22c55e', fontSize: 12, fontWeight: 700, lineHeight: 1,
+                          }}>✓</span>
+                        )}
+                        {solvedMarker === 'played' && (
+                          <span style={{
+                            color: HD_MUTED, fontSize: 12, fontWeight: 700, lineHeight: 1,
+                          }}>—</span>
+                        )}
+                        {filmMarker === 'gold' && (
+                          <span style={{
+                            width: 6, height: 6, borderRadius: '50%',
+                            background: '#fbbf24', display: 'inline-block',
+                          }}/>
+                        )}
+                        {filmMarker === 'orange' && (
+                          <span style={{
+                            width: 6, height: 6, borderRadius: '50%',
+                            background: '#f97316', display: 'inline-block',
+                          }}/>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 13, color: HD_MUTED, flexShrink: 0 }}>›</div>
+                    </button>
+                  </React.Fragment>
+                );
+              })}
+            </React.Fragment>
+          )}
         </div>
       )}
     </div>
@@ -2452,7 +2583,7 @@ function App() {
         const exactAllInteger = scored.slots.every(s => s.distance === 0);
         const score = computeScore(attempts, true, hintsUsed, exactAllInteger, false);
         saveScoreForDate(dateStr, {
-          score, attempts, hintsUsed, exactBonus: exactAllInteger && !hintsUsed,
+          score, attempts, solved: true, hintsUsed, exactBonus: exactAllInteger && !hintsUsed,
           filmBonus: false,
           themeName: puzzle.theme ? puzzle.theme.name : null,
         });
@@ -2464,7 +2595,7 @@ function App() {
       setTimeout(() => setFading(false), 50);
       if (virtualDateOffset === 0) {
         saveScoreForDate(dateStr, {
-          score: 0, attempts: 6, hintsUsed, exactBonus: false,
+          score: 0, attempts: 6, solved: false, hintsUsed, exactBonus: false,
           filmBonus: false,
           themeName: puzzle.theme ? puzzle.theme.name : null,
         });
@@ -2694,7 +2825,7 @@ function App() {
     }
     const score = computeScore(attempts, solvedNow, hintsUsed, exactAllInteger, true);
     saveScoreForDate(dateStr, {
-      score, attempts, hintsUsed,
+      score, attempts, solved: solvedNow, hintsUsed,
       exactBonus: solvedNow && exactAllInteger && !hintsUsed,
       filmBonus: true,
       themeName: puzzle.theme ? puzzle.theme.name : null,
